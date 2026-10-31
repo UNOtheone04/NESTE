@@ -1,0 +1,2579 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neste - Secure Yield & Admin Control Portal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        neste: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b',
+                            dark: '#022c22'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #10b981;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 h-full flex flex-col justify-between font-sans selection:bg-neste-500 selection:text-white">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Simulated SMS Banner Popup -->
+    <div id="sms-banner" class="fixed top-3 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm bg-gray-900 border-2 border-emerald-500 text-white rounded-2xl p-3.5 shadow-2xl transition-all duration-300 -translate-y-32 opacity-0 pointer-events-none">
+        <div class="flex items-start justify-between">
+            <div class="flex items-center space-x-2.5">
+                <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold shrink-0">
+                    <i class="fa-solid fa-comment-sms"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-bold text-white">Neste Verification SMS</span>
+                        <span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono">Just Now</span>
+                    </div>
+                    <p id="sms-text" class="text-[11px] text-gray-300 mt-0.5">Your OTP code is <b id="sms-code-display" class="text-emerald-400 font-mono tracking-wider">------</b>. Do not share this with anyone.</p>
+                </div>
+            </div>
+            <button onclick="hideSmsBanner()" class="text-gray-400 hover:text-white text-xs ml-2">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="mt-2.5 pt-2 border-t border-gray-800 flex justify-end">
+            <button onclick="autoFillOtpCode()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-lg transition shadow">
+                ⚡ Auto-fill Code
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Mobile Container -->
+    <div class="w-full max-w-md mx-auto bg-gray-950 shadow-2xl flex flex-col h-full min-h-screen relative overflow-hidden border-x border-gray-800">
+
+        <!-- ==================== VIEW 1: AUTHENTICATION ==================== -->
+        <div id="auth-view" class="flex-1 flex flex-col justify-between p-6 overflow-y-auto">
+            <div class="pt-6 text-center">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-tr from-neste-600 to-neste-400 rounded-2xl shadow-lg shadow-neste-600/30 mb-3 text-white text-3xl font-bold">
+                    <i class="fa-solid fa-leaf"></i>
+                </div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-white">Neste<span class="text-neste-500">.</span></h1>
+                <p class="text-xs text-gray-400 mt-1">Smart Yield & Sustainable Daily Investment</p>
+            </div>
+
+            <div class="bg-gray-900/80 backdrop-blur border border-gray-800 p-6 rounded-3xl shadow-xl my-4">
+                <div class="grid grid-cols-3 gap-1 rounded-xl bg-gray-800/80 p-1 mb-5">
+                    <button id="tab-login" onclick="switchAuthTab('login')" class="py-2 text-xs font-semibold rounded-lg bg-neste-600 text-white shadow transition-all">User</button>
+                    <button id="tab-signup" onclick="switchAuthTab('signup')" class="py-2 text-xs font-semibold rounded-lg text-gray-400 hover:text-white transition-all">Register</button>
+                    <button id="tab-admin" onclick="switchAuthTab('admin')" class="py-2 text-xs font-semibold rounded-lg text-amber-400 hover:text-amber-300 transition-all flex items-center justify-center space-x-1">
+                        <i class="fa-solid fa-user-shield text-[10px]"></i>
+                        <span>Admin</span>
+                    </button>
+                </div>
+
+                <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                    <div id="phone-group">
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Phone Number</label>
+                        <div class="relative flex items-center">
+                            <span class="absolute left-3.5 text-gray-400 font-medium text-sm">+63</span>
+                            <input type="tel" id="phone-input"  class="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 pl-14 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-neste-500">
+                        </div>
+                    </div>
+
+                    <!-- SMS OTP FIELD (REGISTER MODE ONLY) -->
+                    <div id="otp-group" class="hidden">
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">SMS OTP Code</label>
+                        <div class="flex items-center space-x-2">
+                            <div class="relative flex-1">
+                                <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"><i class="fa-solid fa-shield-halved"></i></span>
+                                <input type="text" maxlength="6" id="otp-input" placeholder="Enter 6-digit OTP" class="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 pl-10 pr-3 text-sm text-white font-mono tracking-widest placeholder-gray-500 focus:outline-none focus:border-neste-500">
+                            </div>
+                            <button type="button" id="send-otp-btn" onclick="sendSmsOtp()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-3 rounded-xl transition shadow-md whitespace-nowrap shrink-0">
+                                Send OTP
+                            </button>
+                        </div>
+                        <p id="otp-timer-label" class="text-[10px] text-gray-400 mt-1 hidden">Resend OTP in <span id="otp-countdown" class="font-bold text-amber-400">60</span>s</p>
+                    </div>
+
+                    <div id="admin-key-group" class="hidden">
+                        <label class="block text-xs font-semibold text-amber-400 uppercase tracking-wider mb-1.5">Admin Key / Access Code</label>
+                        <div class="relative flex items-center">
+                            <span class="absolute left-3.5 text-amber-400 text-sm"><i class="fa-solid fa-key"></i></span>
+                            <input type="password" id="admin-key-input" placeholder="Enter admin key" class="w-full bg-gray-800 border border-amber-500/50 rounded-xl py-3 pl-11 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400">
+                        </div>
+                    </div>
+
+                    <div id="password-group">
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Password</label>
+                        <div class="relative flex items-center">
+                            <span class="absolute left-3.5 text-gray-400 text-sm"><i class="fa-solid fa-lock"></i></span>
+                            <input type="password" id="password-input" class="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 pl-11 pr-10 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-neste-500">
+                            <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3.5 text-gray-400 hover:text-white text-sm">
+                                <i id="eye-icon" class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="invite-code-group" class="hidden">
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Invitation Code (Optional)</label>
+                        <div class="relative flex items-center">
+                            <span class="absolute left-3.5 text-gray-400 text-sm"><i class="fa-solid fa-ticket"></i></span>
+                            <input type="text" id="invite-input" placeholder="e.g. NEST273" class="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 pl-11 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-neste-500">
+                        </div>
+                    </div>
+                    <button type="submit" id="auth-submit-btn" class="w-full bg-gradient-to-r from-neste-600 to-neste-500 hover:from-neste-500 hover:to-neste-400 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-neste-600/30 transition-all flex items-center justify-center space-x-2 mt-2">
+                        <span id="auth-btn-text">Sign In to Dashboard</span>
+                        <i id="auth-btn-icon" class="fa-solid fa-arrow-right text-xs"></i>
+                    </button>
+                </form>
+
+            </div>
+
+            <div class="text-center pb-2 text-xs text-gray-500">
+                <p><i class="fa-solid fa-shield-halved text-neste-500 mr-1"></i> SSL 256-Bit Secure Investment Portal</p>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 2: MAIN USER DASHBOARD ==================== -->
+        <div id="dashboard-view" class="hidden flex-1 flex flex-col justify-between overflow-y-auto bg-gray-950">
+            <!-- Header Nav -->
+            <div class="sticky top-0 z-20 bg-gray-900/90 backdrop-blur border-b border-gray-800 px-5 py-3.5 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-neste-600/20 border border-neste-500/30 flex items-center justify-center text-neste-400 font-bold text-base">
+                        <i class="fa-solid fa-leaf"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-gray-400 block">Welcome back</span>
+                        <span id="user-display-phone" class="text-xs font-bold text-white tracking-wide">+63 9••••••789</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="openNotificationModal()" class="w-8 h-8 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-300 hover:text-white transition relative">
+                        <i class="fa-regular fa-bell text-xs"></i>
+                        <span id="notification-dot" class="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-gray-900 rounded-full hidden animate-pulse"></span>
+                    </button>
+                    <button onclick="logout()" class="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition">
+                        <i class="fa-solid fa-power-off text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div class="flex-1 p-5 space-y-5 pb-24">
+                
+                <!-- Balance Card -->
+                <div class="bg-gradient-to-br from-neste-900 via-gray-900 to-gray-900 border border-neste-600/30 rounded-3xl p-5 shadow-2xl relative overflow-hidden">
+                    <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-neste-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                    
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <span class="text-[10px] uppercase tracking-wider text-neste-400 font-semibold">Total Account Balance</span>
+                            <div class="flex items-baseline space-x-2 mt-1">
+                                <h2 id="balance-amount" class="text-3xl font-black text-white tracking-tight">₱ 0.00</h2>
+                                <span class="text-[10px] bg-neste-500/20 text-neste-300 px-2 py-0.5 rounded-full font-medium">Active</span>
+                            </div>
+                        </div>
+                        <button onclick="refreshBalance()" class="w-8 h-8 rounded-full bg-gray-800/80 hover:bg-gray-700 flex items-center justify-center text-gray-300 transition">
+                            <i id="refresh-icon" class="fa-solid fa-rotate text-xs"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-3 border-t border-gray-800/80">
+                        <div>
+                            <span class="text-[11px] text-gray-400 block">Today's Earnings</span>
+                            <span id="daily-earnings" class="text-sm font-bold text-neste-400">₱ 0.00</span>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-gray-400 block">Total Invested</span>
+                            <span id="total-invested" class="text-sm font-bold text-white">₱ 0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-3">
+                        <button onclick="openModal('topup-modal')" class="bg-neste-600 hover:bg-neste-500 text-white font-semibold py-2.5 px-4 rounded-xl text-sm shadow-lg shadow-neste-600/30 transition flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-wallet text-xs"></i>
+                            <span>Top Up</span>
+                        </button>
+                        <button onclick="openModal('withdraw-modal')" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-money-bill-transfer text-xs"></i>
+                            <span>Withdraw</span>
+                        </button>
+                    </div>
+
+                    <div class="mt-3 pt-3 border-t border-gray-800 text-center">
+                        <button onclick="simulateMidnightSettlement()" class="text-xs text-neste-400 hover:underline">🌙 Simulate 12 AM Settlement</button>
+                    </div>
+                </div>
+
+                <!-- Daily Check-in Bonus Card -->
+                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex items-center justify-between shadow-lg">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-lg font-bold">
+                            <i class="fa-solid fa-calendar-check"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">Daily Check-in Bonus</h4>
+                            <p class="text-[10px] text-gray-400">Earn +₱ 1.50 to Today's Earnings & Bonus</p>
+                        </div>
+                    </div>
+                    <button id="checkin-btn" onclick="claimDailyCheckIn()" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-md transition flex items-center space-x-1">
+                        <i class="fa-solid fa-gift text-xs"></i>
+                        <span>Claim ₱ 1.50</span>
+                    </button>
+                </div>
+
+                <!-- Ticker Banner -->
+                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-3.5 flex items-center space-x-3 overflow-hidden">
+                    <div class="bg-neste-500/10 text-neste-400 p-2 rounded-xl flex-shrink-0">
+                        <i class="fa-solid fa-bolt text-sm"></i>
+                    </div>
+                    <div class="flex-1 overflow-hidden relative h-6">
+                        <div id="ticker-text" class="absolute w-full whitespace-nowrap text-xs text-gray-300 font-medium transition-all duration-500">
+                            +63 928***412 earned ₱ 5.00 referral bonus for a new invite!
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Grid -->
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="switchTab('plans')" class="flex flex-col items-center p-2.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-2xl transition group">
+                        <div class="w-10 h-10 rounded-xl bg-neste-500/10 border border-neste-500/20 flex items-center justify-center text-neste-400 group-hover:scale-110 transition mb-1">
+                            <i class="fa-solid fa-seedling"></i>
+                        </div>
+                        <span class="text-[10px] font-medium text-gray-300">Plans</span>
+                    </button>
+
+                    <button onclick="openModal('withdrawal-history-modal')" class="flex flex-col items-center p-2.5 bg-gray-900 hover:bg-gray-800 border border-red-500/20 rounded-2xl transition group">
+                        <div class="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 group-hover:scale-110 transition mb-1">
+                            <i class="fa-solid fa-file-invoice-dollar"></i>
+                        </div>
+                        <span class="text-[10px] font-medium text-gray-300">Payouts</span>
+                    </button>
+
+                    <button onclick="openModal('records-modal')" class="flex flex-col items-center p-2.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-2xl transition group">
+                        <div class="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 group-hover:scale-110 transition mb-1">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <span class="text-[10px] font-medium text-gray-300">Records</span>
+                    </button>
+
+                    <button onclick="openModal('team-modal')" class="flex flex-col items-center p-2.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 rounded-2xl transition group">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition mb-1">
+                            <i class="fa-solid fa-user-group"></i>
+                        </div>
+                        <span class="text-[10px] font-medium text-gray-300">Team</span>
+                    </button>
+                </div>
+
+                <!-- INVESTMENT PLANS -->
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-white text-base">Daily Investment Plans</h3>
+                        <span class="text-xs text-neste-400 font-medium">Yield guaranteed</span>
+                    </div>
+
+                    <div id="plans-container" class="space-y-3.5">
+                        <!-- Plan 1 -->
+                        <div class="bg-gray-900 border border-gray-800 hover:border-neste-600/50 rounded-2xl p-4 transition relative overflow-hidden">
+                            <div class="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">Starter</div>
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <h4 class="font-bold text-white text-sm">Basic plan</h4>
+                                    <p class="text-xs text-gray-400">Daily Return Cycle: 20 Days</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 my-3 bg-gray-950 p-2.5 rounded-xl border border-gray-800/60 text-center">
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block">Price</span>
+                                    <span class="text-xs font-bold text-white">₱ 200</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block">Daily Income</span>
+                                    <span class="text-xs font-bold text-neste-400">₱ 16.00</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block">Total Return</span>
+                                    <span class="text-xs font-bold text-white">₱ 320</span>
+                                </div>
+                            </div>
+                            <button onclick="investInPlan('Basic plan', 200, 16, 20)" class="w-full bg-neste-600 hover:bg-neste-500 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-md shadow-neste-600/20">
+                                Invest Now
+                            </button>
+                        </div>
+
+                        <!-- Plan 2 -->
+                        <div class="bg-gray-900 border border-gray-800 hover:border-neste-600/50 rounded-2xl p-4 transition relative overflow-hidden">
+                            <div class="absolute top-0 right-0 bg-neste-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">Hot Plan</div>
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <h4 class="font-bold text-white text-sm">Neste Seedling Fund A</h4>
+                                    <p class="text-xs text-gray-400">Daily Return Cycle: 30 Days</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 my-3 bg-gray-950 p-2.5 rounded-xl border border-gray-800/60 text-center">
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block">Price</span>
+                                    <span class="text-xs font-bold text-white">₱ 500</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block">Daily Income</span>
+                                    <span class="text-xs font-bold text-neste-400">₱ 45.00</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block">Total Return</span>
+                                    <span class="text-xs font-bold text-white">₱ 1,350</span>
+                                </div>
+                            </div>
+                            <button onclick="investInPlan('Neste Seedling Fund A', 500, 45, 30)" class="w-full bg-neste-600 hover:bg-neste-500 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-md shadow-neste-600/20">
+                                Invest Now
+                            </button>
+                        </div>
+
+                        <!-- Plan 3 -->
+                        <div class="bg-gray-900 border border-gray-800 hover:border-neste-600/50 rounded-2xl p-4 transition relative overflow-hidden">
+                            <div class="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">Popular</div>
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <h4 class="font-bold text-white text-sm">Neste Growth Fund B</h4>
+                                    <p class="text-xs text-gray-400">Daily Return Cycle: 45 Days</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 my-3 bg-gray-950 p-2.5 rounded-xl border border-gray-800/60 text-center">
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block">Price</span>
+                                    <span class="text-xs font-bold text-white">₱ 1,500</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block">Daily Income</span>
+                                    <span class="text-xs font-bold text-neste-400">₱ 145.00</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block">Total Return</span>
+                                    <span class="text-xs font-bold text-white">₱ 6,525</span>
+                                </div>
+                            </div>
+                            <button onclick="investInPlan('Neste Growth Fund B', 1500, 145, 45)" class="w-full bg-neste-600 hover:bg-neste-500 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-md shadow-neste-600/20">
+                                Invest Now
+                            </button>
+                        </div>
+
+                        <!-- Plan 4 -->
+                        <div class="bg-gray-900 border border-gray-800 hover:border-neste-600/50 rounded-2xl p-4 transition relative overflow-hidden">
+                            <div class="absolute top-0 right-0 bg-teal-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">VIP Tier</div>
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <h4 class="font-bold text-white text-sm">Neste Premium Yield C</h4>
+                                    <p class="text-xs text-gray-400">Daily Return Cycle: 60 Days</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 my-3 bg-gray-950 p-2.5 rounded-xl border border-gray-800/60 text-center">
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block">Price</span>
+                                    <span class="text-xs font-bold text-white">₱ 5,000</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block">Daily Income</span>
+                                    <span class="text-xs font-bold text-neste-400">₱ 520.00</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block">Total Return</span>
+                                    <span class="text-xs font-bold text-white">₱ 31,200</span>
+                                </div>
+                            </div>
+                            <button onclick="investInPlan('Neste Premium Yield C', 5000, 520, 60)" class="w-full bg-neste-600 hover:bg-neste-500 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-md shadow-neste-600/20">
+                                Invest Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Investments -->
+                <div class="bg-gray-900 border border-gray-800 rounded-3xl p-5 shadow-xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-white text-base">Active Investments & Daily Yield</h3>
+                        <span class="text-xs text-neste-400 font-medium">Claim yield</span>
+                    </div>
+
+                    <div id="active-plans-container">
+                        <div id="no-active-plans" class="text-center text-xs text-gray-500 py-6 border border-dashed border-gray-800 rounded-2xl">
+                            <i class="fa-solid fa-seedling text-2xl mb-2 text-gray-700 block"></i>
+                            No active investment plans yet.<br>Invest in a plan above to start claiming daily yield!
+                        </div>
+                        <div id="active-plans-list" class="space-y-3"></div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Navigation Bar -->
+            <div class="absolute bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur border-t border-gray-800 px-6 py-3 flex justify-around items-center z-20">
+                <button onclick="switchTab('home')" class="flex flex-col items-center text-neste-500">
+                    <i class="fa-solid fa-house text-lg"></i>
+                    <span class="text-[10px] font-semibold mt-1">Home</span>
+                </button>
+                <button onclick="switchTab('plans')" class="flex flex-col items-center text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-chart-line text-lg"></i>
+                    <span class="text-[10px] font-medium mt-1">Invest</span>
+                </button>
+                <button onclick="openModal('withdrawal-history-modal')" class="flex flex-col items-center text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-receipt text-lg"></i>
+                    <span class="text-[10px] font-medium mt-1">Withdrawals</span>
+                </button>
+                <button onclick="openModal('team-modal')" class="flex flex-col items-center text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-user text-lg"></i>
+                    <span class="text-[10px] font-medium mt-1">Profile</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 3: ADMIN CONTROL PANEL ==================== -->
+        <div id="admin-dashboard-view" class="hidden flex-1 flex flex-col justify-between overflow-y-auto bg-gray-950">
+            <!-- Admin Header -->
+            <div class="sticky top-0 z-20 bg-gray-900/90 backdrop-blur border-b border-amber-500/30 px-5 py-3.5 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-base">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-amber-400 font-semibold block uppercase tracking-wider">Admin Control Portal</span>
+                        <span class="text-xs font-bold text-white tracking-wide">Platform & Referral Engine</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="logoutAdmin()" class="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition">
+                        <i class="fa-solid fa-right-from-bracket text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Admin Sub-Navigation Tabs -->
+            <div class="bg-gray-900 border-b border-gray-800 px-3 py-2 grid grid-cols-4 gap-1 text-[10px]">
+                <button id="admin-nav-overview" onclick="switchAdminSubTab('overview')" class="py-2 rounded-xl bg-amber-500 text-gray-950 font-bold transition flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Overview</span>
+                </button>
+                <button id="admin-nav-topups" onclick="switchAdminSubTab('topups')" class="py-2 rounded-xl text-gray-400 hover:text-white transition flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-wallet"></i>
+                    <span>Top-Ups</span>
+                </button>
+                <button id="admin-nav-withdrawals" onclick="switchAdminSubTab('withdrawals')" class="py-2 rounded-xl text-gray-400 hover:text-white transition flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Withdrawals</span>
+                </button>
+                <button id="admin-nav-referrals" onclick="switchAdminSubTab('referrals')" class="py-2 rounded-xl text-gray-400 hover:text-white transition flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-users-gear"></i>
+                    <span>Users</span>
+                </button>
+            </div>
+
+            <!-- Admin Tab 1: Overview Dashboard -->
+            <div id="admin-section-overview" class="flex-1 p-5 space-y-4 pb-20">
+                <div class="flex justify-between items-center mb-1">
+                    <h3 class="font-extrabold text-white text-sm">Real-time Platform Metrics</h3>
+                    <span class="text-[10px] text-emerald-400 flex items-center space-x-1">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>System Live</span>
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-3.5">
+                        <span class="text-[10px] text-gray-400 block">Total Registered Users</span>
+                        <span id="stat-total-users" class="text-xl font-black text-white mt-0.5 block">0</span>
+                    </div>
+                    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-3.5">
+                        <span class="text-[10px] text-gray-400 block">Active Investment Plans</span>
+                        <span id="stat-active-plans" class="text-xl font-black text-neste-400 mt-0.5 block">0</span>
+                    </div>
+                    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-3.5">
+                        <span class="text-[10px] text-gray-400 block">Approved Payout Volume</span>
+                        <span id="stat-payout-vol" class="text-xl font-black text-emerald-400 mt-0.5 block">₱ 0</span>
+                    </div>
+                    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-3.5">
+                        <span class="text-[10px] text-gray-400 block">Pending Top-Up Requests</span>
+                        <span id="stat-pending-topups" class="text-xl font-black text-amber-400 mt-0.5 block">0</span>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900 border border-amber-500/30 rounded-2xl p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-amber-400">Total Referral Bonus Paid (All Accounts)</span>
+                        <i class="fa-solid fa-coins text-amber-400 text-sm"></i>
+                    </div>
+                    <span id="stat-total-ref-bonus" class="text-2xl font-black text-white">₱ 0.00</span>
+                    <p class="text-[10px] text-gray-400 mt-1">Paid automatically across user registrations at configured rates.</p>
+                </div>
+
+                <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+                    <h4 class="text-xs font-bold text-white mb-2">Live System Activity Log</h4>
+                    <div id="admin-activity-log" class="space-y-2 text-[11px] max-h-48 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Admin Tab 2: Top-Up Requests Manager -->
+            <div id="admin-section-topups" class="hidden flex-1 p-5 space-y-4 pb-20">
+                <div class="bg-gray-900 border border-gray-800 rounded-3xl p-4 shadow-xl">
+                    <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-800">
+                        <div>
+                            <h3 class="font-bold text-white text-sm flex items-center space-x-2">
+                                <i class="fa-solid fa-wallet text-amber-400 text-xs"></i>
+                                <span>Top-Up Verification Requests</span>
+                            </h3>
+                            <p class="text-[11px] text-gray-400">Review GCash screenshots, verify ref numbers, and credit balance</p>
+                        </div>
+                        <button onclick="renderAdminTopups()" class="text-xs text-amber-400 hover:underline flex items-center space-x-1">
+                            <i class="fa-solid fa-arrows-rotate text-[10px]"></i>
+                            <span>Refresh</span>
+                        </button>
+                    </div>
+
+                    <div id="admin-topup-list" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- Admin Tab 3: Withdrawal Manager -->
+            <div id="admin-section-withdrawals" class="hidden flex-1 p-5 space-y-4 pb-20">
+                <div class="grid grid-cols-4 gap-1.5">
+                    <div class="bg-gray-900 border border-amber-500/30 p-2 rounded-xl text-center">
+                        <span class="text-[9px] text-gray-400 block truncate">Pending</span>
+                        <span id="admin-stat-pending" class="text-sm font-black text-amber-400">0</span>
+                    </div>
+                    <div class="bg-gray-900 border border-emerald-500/30 p-2 rounded-xl text-center">
+                        <span class="text-[9px] text-gray-400 block truncate">Approved</span>
+                        <span id="admin-stat-approved" class="text-sm font-black text-emerald-400">0</span>
+                    </div>
+                    <div class="bg-gray-900 border border-red-500/30 p-2 rounded-xl text-center">
+                        <span class="text-[9px] text-gray-400 block truncate">Rejected</span>
+                        <span id="admin-stat-rejected" class="text-sm font-black text-red-400">0</span>
+                    </div>
+                    <div class="bg-gray-900 border border-blue-500/30 p-2 rounded-xl text-center">
+                        <span class="text-[9px] text-gray-400 block truncate">Volume</span>
+                        <span id="admin-stat-volume" class="text-xs font-black text-blue-400 truncate block mt-0.5">₱ 0</span>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900 border border-gray-800 rounded-3xl p-4 shadow-xl">
+                    <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-800">
+                        <div>
+                            <h3 class="font-bold text-white text-sm flex items-center space-x-2">
+                                <i class="fa-solid fa-list-check text-amber-400 text-xs"></i>
+                                <span>Withdrawal Approvals</span>
+                            </h3>
+                            <p class="text-[11px] text-gray-400">Approve payout or Reject with Auto-Refund</p>
+                        </div>
+                        <button onclick="renderAdminWithdrawals()" class="text-xs text-amber-400 hover:underline flex items-center space-x-1">
+                            <i class="fa-solid fa-arrows-rotate text-[10px]"></i>
+                            <span>Refresh</span>
+                        </button>
+                    </div>
+
+                    <div class="relative mb-3">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </span>
+                        <input type="text" id="admin-search-input" onkeyup="renderAdminWithdrawals()" placeholder="Search Ref No, Phone, or Name..." class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2 pl-9 pr-8 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400/60">
+                        <button onclick="clearAdminSearch()" id="admin-search-clear" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-xs">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-1 mb-3 text-[11px] text-center">
+                        <button id="admin-filter-all" onclick="setAdminFilter('all')" class="py-1 rounded-lg bg-amber-500/20 text-amber-300 font-medium">All</button>
+                        <button id="admin-filter-pending" onclick="setAdminFilter('pending')" class="py-1 rounded-lg bg-gray-800 text-gray-400 font-medium hover:text-white">Pending</button>
+                        <button id="admin-filter-approved" onclick="setAdminFilter('approved')" class="py-1 rounded-lg bg-gray-800 text-gray-400 font-medium hover:text-white">Approved</button>
+                        <button id="admin-filter-rejected" onclick="setAdminFilter('rejected')" class="py-1 rounded-lg bg-gray-800 text-gray-400 font-medium hover:text-white">Rejected</button>
+                    </div>
+
+                    <div id="admin-withdrawal-list" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- Admin Tab 4: User Directory & Search Engine -->
+            <div id="admin-section-referrals" class="hidden flex-1 p-5 space-y-4 pb-20">
+                <div class="bg-gray-900 border border-amber-500/30 rounded-3xl p-4 shadow-xl">
+                    <div class="flex items-center justify-between mb-2 pb-2 border-b border-gray-800">
+                        <div>
+                            <h3 class="font-bold text-white text-sm flex items-center space-x-2">
+                                <i class="fa-solid fa-sliders text-amber-400 text-xs"></i>
+                                <span>User Directory & Rate Control</span>
+                            </h3>
+                            <p class="text-[11px] text-gray-400">Edit and customize referral rate (₱) for Admin & Regular accounts</p>
+                        </div>
+                    </div>
+
+                    <!-- Code Search Engine Bar -->
+                    <div class="relative mb-3">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-400 text-xs">
+                            <i class="fa-solid fa-magnifying-glass font-bold"></i>
+                        </span>
+                        <input type="text" id="admin-code-search-input" onkeyup="renderDefaultUserReferralSettingsList()" placeholder="Search Invitation Code or Phone (e.g. NEST273)..." class="w-full bg-gray-950 border border-amber-500/40 rounded-xl py-2 pl-9 pr-8 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400">
+                        <button onclick="clearAdminCodeSearch()" id="admin-code-search-clear" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-xs">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <!-- Category Tabs -->
+                    <div class="grid grid-cols-2 gap-2 mb-4 text-[11px] text-center">
+                        <button id="admin-user-tab-regular" onclick="switchAdminUserCategory('regular')" class="py-2 rounded-xl bg-emerald-600 text-white font-bold transition flex items-center justify-center space-x-1.5 shadow">
+                            <i class="fa-solid fa-users"></i>
+                            <span>Regular Accounts</span>
+                        </button>
+                        <button id="admin-user-tab-default" onclick="switchAdminUserCategory('default')" class="py-2 rounded-xl bg-gray-800 text-gray-400 font-medium hover:text-white transition flex items-center justify-center space-x-1.5">
+                            <i class="fa-solid fa-user-shield"></i>
+                            <span>Admin Accounts</span>
+                        </button>
+                    </div>
+
+                    <div id="admin-user-category-info-banner" class="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-3 mb-4 text-[11px] text-emerald-200">
+                        <i class="fa-solid fa-circle-check mr-1 text-emerald-400"></i>
+                        <b>FIXED ₱ 5.00 DEFAULT:</b> All regular user accounts strictly earn ₱ 5.00 per invite rate.
+                    </div>
+
+                    <div id="admin-user-referral-list" class="space-y-3"></div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- Notifications Modal -->
+    <div id="notification-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl relative max-h-[80vh] flex flex-col">
+            <button onclick="closeModal('notification-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="flex items-center space-x-2.5 mb-1">
+                <div class="w-8 h-8 rounded-xl bg-neste-500/10 border border-neste-500/20 text-neste-400 flex items-center justify-center text-sm font-bold">
+                    <i class="fa-regular fa-bell"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Notifications</h3>
+            </div>
+            <p class="text-xs text-gray-400 mb-4">System updates and withdrawal status alerts.</p>
+
+            <div id="notifications-list" class="flex-1 overflow-y-auto space-y-3 pr-1">
+                <div id="no-notifications-msg" class="text-center text-xs text-gray-500 py-8 border border-dashed border-gray-800 rounded-2xl">
+                    <i class="fa-regular fa-bell-slash text-2xl mb-2 text-gray-700 block"></i>
+                    No notifications right now.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Up Modal -->
+    <div id="topup-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl relative">
+            <button onclick="closeModal('topup-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-lg font-bold text-white mb-1">Top Up Balance</h3>
+            <p class="text-xs text-gray-400 mb-5">Select amount and proceed to GCash payment</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5">Amount (PHP)</label>
+                    <input type="number" id="topup-amount" value="5000" class="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-neste-500">
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="document.getElementById('topup-amount').value='200'" class="bg-gray-800 hover:bg-gray-700 text-xs py-2 rounded-xl text-gray-300 font-medium">₱ 200</button>
+                    <button onclick="document.getElementById('topup-amount').value='1000'" class="bg-gray-800 hover:bg-gray-700 text-xs py-2 rounded-xl text-gray-300 font-medium">₱ 1,000</button>
+                    <button onclick="document.getElementById('topup-amount').value='5000'" class="bg-gray-800 hover:bg-gray-700 text-xs py-2 rounded-xl text-gray-300 font-medium">₱ 5,000</button>
+                </div>
+
+                <button onclick="processTopUp()" id="topup-submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl text-sm transition shadow-lg shadow-blue-600/30 mt-2 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-mobile-screen-button"></i>
+                    <span>Proceed to GCash Payment</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Direct GCash Payment Modal (Updated Flow with Screenshot Upload, Ref No, and Proceed/Submit Payment Button) -->
+    <div id="gcash-gateway-modal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden shadow-2xl relative text-center my-auto">
+            <button onclick="closeModal('gcash-gateway-modal')" class="absolute top-3 right-3 text-gray-400 hover:text-white z-10 w-7 h-7 bg-black/40 rounded-full flex items-center justify-center text-xs">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- GCash Header Card Style -->
+            <div class="bg-gradient-to-r from-blue-700 to-blue-500 pt-5 pb-4 px-4 text-white">
+                <div class="flex items-center justify-center space-x-1.5 mb-1">
+                    <span class="w-7 h-7 bg-white text-blue-600 rounded-full flex items-center justify-center font-black text-xs shadow">G</span>
+                    <span class="text-base font-black tracking-wide">GCash Payment Verification</span>
+                </div>
+                <p class="text-[11px] text-blue-100 font-medium">Top-up Amount: <b class="text-white text-sm" id="gcash-modal-amount">₱ 5,000.00</b></p>
+            </div>
+
+            <!-- Body Content -->
+            <div class="p-4 space-y-3.5 text-left max-h-[70vh] overflow-y-auto">
+                <!-- Recipient Number Display -->
+                <div class="bg-gray-950 border border-gray-800 rounded-2xl py-2.5 px-3.5 flex items-center justify-between">
+                    <div>
+                        <span class="text-[9px] text-gray-400 uppercase tracking-wider block">Send Payment To GCash No.</span>
+                        <span class="text-sm font-black text-white font-mono tracking-wider">09752161671</span>
+                    </div>
+                    <button onclick="copyGcNumber()" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-[10px] font-bold px-2.5 py-1.5 rounded-lg border border-blue-500/30">
+                        Copy No.
+                    </button>
+                </div>
+
+                <!-- 1) Upload Screenshot Input -->
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">
+                        1) Upload Payment Screenshot <span class="text-red-400">*</span>
+                    </label>
+                    <div class="border-2 border-dashed border-gray-700 hover:border-blue-500 rounded-2xl p-3 text-center bg-gray-950 cursor-pointer relative">
+                        <input type="file" id="gcash-screenshot-input" accept="image/*" onchange="previewGcashScreenshot(event)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                        <div id="gcash-upload-placeholder" class="space-y-1">
+                            <i class="fa-solid fa-cloud-arrow-up text-blue-400 text-lg"></i>
+                            <p class="text-[11px] text-gray-300 font-medium">Tap to upload receipt/screenshot</p>
+                            <p class="text-[9px] text-gray-500">PNG, JPG up to 10MB</p>
+                        </div>
+                        <div id="gcash-upload-preview-container" class="hidden relative">
+                            <img id="gcash-screenshot-preview" src="" alt="Receipt Preview" class="max-h-28 mx-auto rounded-xl object-contain border border-gray-700">
+                            <p class="text-[10px] text-emerald-400 font-semibold mt-1"><i class="fa-solid fa-circle-check"></i> Screenshot Attached</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2) Reference Number Input Box -->
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-1">
+                        2) GCash Reference Number <span class="text-red-400">*</span>
+                    </label>
+                    <div class="relative flex items-center">
+                        <span class="absolute left-3.5 text-blue-400 text-xs"><i class="fa-solid fa-receipt"></i></span>
+                        <input type="text" id="gcash-ref-number-input" placeholder="e.g. 1092837482" class="w-full bg-gray-950 border border-gray-700 rounded-xl py-2.5 pl-10 pr-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-mono tracking-wider">
+                    </div>
+                </div>
+
+                <!-- Status Notice -->
+                <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2.5 text-[10px] text-amber-200 leading-relaxed">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-400 mr-1"></i>
+                    <b>Admin Verification:</b> After clicking Proceed, your account balance will <b>wait for credit</b> upon verification and checking by the admin.
+                </div>
+
+                <!-- 3) Action Button Changed to 'Proceed' -->
+                <button onclick="submitGcashPaymentProof()" class="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 rounded-xl text-xs transition shadow-lg shadow-blue-600/30 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                    <span>Proceed</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Withdraw Modal -->
+    <div id="withdraw-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl relative">
+            <button onclick="closeModal('withdraw-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-lg font-bold text-white mb-1">Withdraw Funds</h3>
+            <p class="text-xs text-gray-400 mb-4">Min: ₱ 200.00 | Fee: 3%</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label id="withdraw-name-label" class="block text-xs font-semibold text-gray-400 uppercase mb-1.5">GCash Account Name</label>
+                    <input type="text" id="withdraw-name" placeholder="Juan Dela Cruz" class="w-full bg-gray-800 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:border-neste-500">
+                </div>
+
+                <div>
+                    <label id="withdraw-phone-label" class="block text-xs font-semibold text-gray-400 uppercase mb-1.5">GCash Number</label>
+                    <input type="tel" id="withdraw-phone" placeholder="09175551234" class="w-full bg-gray-800 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:border-neste-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1.5">Withdrawal Amount (PHP)</label>
+                    <input type="number" id="withdraw-amount" value="200" min="200" class="w-full bg-gray-800 border border-gray-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-none focus:border-neste-500">
+                </div>
+
+                <button onclick="processWithdrawal()" id="withdraw-submit-btn" class="w-full bg-neste-600 hover:bg-neste-500 text-white font-semibold py-3 rounded-xl text-sm transition shadow-lg shadow-neste-600/30 mt-2">
+                    Submit GCash Withdrawal Request
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WITHDRAWAL HISTORY MODAL -->
+    <div id="withdrawal-history-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-md p-6 shadow-2xl relative max-h-[80vh] flex flex-col">
+            <button onclick="closeModal('withdrawal-history-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="flex items-center space-x-2.5 mb-1">
+                <div class="w-7 h-7 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center text-xs font-bold">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Withdrawal History</h3>
+            </div>
+            <p class="text-xs text-gray-400 mb-4">Dedicated log of all GCash payout requests with status.</p>
+
+            <div id="withdrawal-records-list" class="flex-1 overflow-y-auto space-y-3 pr-1">
+                <div id="no-withdrawal-records-msg" class="text-center text-xs text-gray-500 py-10 border border-dashed border-gray-800 rounded-2xl">
+                    <i class="fa-solid fa-money-bill-transfer text-3xl mb-2 text-gray-700 block"></i>
+                    No withdrawal records found.<br>Your payout requests will appear here.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Team / Referral Modal -->
+    <div id="team-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl relative">
+            <button onclick="closeModal('team-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-lg font-bold text-white mb-1">Referral & Team Rewards</h3>
+            <p class="text-xs text-gray-400 mb-4">Invite friends and earn bonus rewards automatically for every registration!</p>
+
+            <div class="bg-gray-950 p-4 rounded-2xl border border-gray-800 text-center mb-4">
+                <span class="text-xs text-gray-400 block mb-1">Your Invitation Code</span>
+                <div class="bg-gray-900 border border-gray-700 rounded-xl p-2.5 flex items-center justify-between text-xs text-neste-400 font-mono">
+                    <span id="ref-link" class="truncate">NEST273</span>
+                    <button onclick="copyRefLink()" class="bg-neste-600 hover:bg-neste-500 text-white px-3 py-1.5 rounded-lg text-xs ml-2 font-sans font-medium">Copy</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
+                    <span class="text-[10px] text-gray-400 block">Level 1</span>
+                    <span id="level1-users-count" class="text-sm font-bold text-white">0 Users</span>
+                </div>
+                <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
+                    <span class="text-[10px] text-gray-400 block">Invite Rate</span>
+                    <span id="current-user-invite-rate" class="text-sm font-bold text-emerald-400">₱ 50.00</span>
+                </div>
+                <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
+                    <span class="text-[10px] text-gray-400 block">Bonus Earned</span>
+                    <span id="bonus-earned-display" class="text-sm font-bold text-neste-400">₱ 0.00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- General Transaction Records Modal -->
+    <div id="records-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-md p-6 shadow-2xl relative max-h-[80vh] flex flex-col">
+            <button onclick="closeModal('records-modal')" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-lg font-bold text-white mb-1">Transaction History</h3>
+            <p class="text-xs text-gray-400 mb-3">All deposits, yield payouts, and daily rewards.</p>
+
+            <button onclick="openWithdrawalsFromRecords()" class="w-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-semibold py-2 px-3 rounded-xl text-xs transition mb-4 flex items-center justify-between">
+                <span class="flex items-center space-x-2">
+                    <i class="fa-solid fa-file-invoice-dollar text-sm"></i>
+                    <span>Switch to Withdrawal History Only</span>
+                </span>
+                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+            </button>
+
+            <div id="records-list" class="flex-1 overflow-y-auto space-y-3 pr-1">
+                <div id="no-records-msg" class="text-center text-xs text-gray-500 py-8 border border-dashed border-gray-800 rounded-2xl">
+                    <i class="fa-solid fa-receipt text-3xl mb-2 text-gray-700 block"></i>
+                    No transaction records found.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== JAVASCRIPT LOGIC ==================== -->
+    <script>
+        // State variables
+        let currentAuthMode = 'login';
+        let currentUserPhone = '9752161671'; 
+        let userBalance = 0.00;
+        let totalInvested = 0.00;
+        let dailyEarnings = 0.00;
+        let bonusEarned = 0.00; 
+        let level1UsersCount = 0;
+        let hasCheckedInToday = false;
+
+        // OTP State
+        let generatedOtpCode = null;
+        let otpCountdownInterval = null;
+        let otpTimerSeconds = 0;
+
+        let activeInvestments = []; 
+        let currentAdminFilter = 'all';
+        let currentAdminUserCategory = 'regular';
+        let uploadedScreenshotDataUrl = null;
+
+        // Designated default admin-controlled accounts (FULLY CLEARED TO ₱ 0.00 BY DEFAULT)
+        const defaultUserPhones = ['9752161671', '9123456789', '9283334455'];
+
+        // Initial default users with zero balances as requested
+        const defaultUsers = {
+            '9752161671': { password: 'securepass123', inviteCode: 'NEST273', balance: 0.00, invested: 0.00, earnings: 0.00, bonus: 0.00, level1: 0, checkedIn: false, referralBonus: 50.00, isDefault: true, activeInvestments: [] },
+            '9123456789': { password: 'securepass123', inviteCode: 'NEST321', balance: 0.00, invested: 0.00, earnings: 0.00, bonus: 0.00, level1: 0, checkedIn: false, referralBonus: 50.00, isDefault: true, activeInvestments: [] },
+            '9283334455': { password: 'securepass123', inviteCode: 'NEST456', balance: 0.00, invested: 0.00, earnings: 0.00, bonus: 0.00, level1: 0, checkedIn: false, referralBonus: 50.00, isDefault: true, activeInvestments: [] }
+        };
+
+        let codeToUserMap = {
+            'NEST273': '9752161671',
+            'NEST321': '9123456789',
+            'NEST456': '9283334455'
+        };
+
+        let systemLogs = [
+            "System initialized with automatic rate controls enabled in Admin Control Portal.",
+            "All admin accounts balance, invested, earnings & bonuses cleared to ₱ 0.00.",
+            "Referral engine active: Custom referral rates customizable per account in Admin Panel."
+        ];
+
+        function addAdminLog(msg) {
+            const timeStr = new Date().toLocaleTimeString();
+            systemLogs.unshift(`[${timeStr}] ${msg}`);
+            if (systemLogs.length > 25) systemLogs.pop();
+            renderAdminActivityLog();
+        }
+
+        function renderAdminActivityLog() {
+            const container = document.getElementById('admin-activity-log');
+            if (!container) return;
+            container.innerHTML = systemLogs.map(log => `
+                <div class="p-2 bg-gray-950 rounded-lg border border-gray-800/60 font-mono text-[10px] text-gray-300">
+                    ${log}
+                </div>
+            `).join('');
+        }
+
+        function generateRefNo() {
+            return 'REF-' + Math.floor(100000 + Math.random() * 900000);
+        }
+
+        function loadWithdrawalRequests() {
+            try {
+                const stored = localStorage.getItem('neste_withdrawal_requests');
+                if (stored) return JSON.parse(stored);
+            } catch (e) {
+                console.error('Could not load withdrawal requests', e);
+            }
+            return [];
+        }
+
+        function saveWithdrawalRequests() {
+            try {
+                localStorage.setItem('neste_withdrawal_requests', JSON.stringify(withdrawalRequests));
+            } catch (e) {
+                console.error('Could not save withdrawal requests', e);
+            }
+        }
+
+        let withdrawalRequests = loadWithdrawalRequests();
+
+        function loadTopupRequests() {
+            try {
+                const stored = localStorage.getItem('neste_topup_requests');
+                if (stored) return JSON.parse(stored);
+            } catch (e) {
+                console.error('Could not load topup requests', e);
+            }
+            return [];
+        }
+
+        function saveTopupRequests() {
+            try {
+                localStorage.setItem('neste_topup_requests', JSON.stringify(topupRequests));
+            } catch (e) {
+                console.error('Could not save topup requests', e);
+            }
+        }
+
+        let topupRequests = loadTopupRequests();
+
+        function loadNotifications() {
+            try {
+                const stored = localStorage.getItem('neste_notifications');
+                if (stored) return JSON.parse(stored);
+            } catch (e) {
+                console.error('Could not load notifications', e);
+            }
+            return {};
+        }
+
+        function saveNotifications() {
+            try {
+                localStorage.setItem('neste_notifications', JSON.stringify(userNotifications));
+            } catch (e) {
+                console.error('Could not save notifications', e);
+            }
+        }
+
+        let userNotifications = loadNotifications();
+
+        function addNotificationForUser(phone, title, message, type = 'approval') {
+            if (!userNotifications[phone]) {
+                userNotifications[phone] = [];
+            }
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', Today';
+
+            userNotifications[phone].unshift({
+                id: 'notif_' + Date.now(),
+                title: title,
+                message: message,
+                time: timeStr,
+                type: type,
+                read: false
+            });
+
+            saveNotifications();
+
+            if (currentUserPhone === phone) {
+                updateNotificationBellUI();
+            }
+        }
+
+        function updateNotificationBellUI() {
+            const redDot = document.getElementById('notification-dot');
+            if (!redDot) return;
+
+            const list = userNotifications[currentUserPhone] || [];
+            const hasUnread = list.some(n => !n.read);
+
+            if (hasUnread) {
+                redDot.classList.remove('hidden');
+            } else {
+                redDot.classList.add('hidden');
+            }
+        }
+
+        function openNotificationModal() {
+            const list = userNotifications[currentUserPhone] || [];
+            list.forEach(n => n.read = true);
+            saveNotifications();
+            updateNotificationBellUI();
+
+            renderNotificationsList();
+            openModal('notification-modal');
+        }
+
+        function renderNotificationsList() {
+            const container = document.getElementById('notifications-list');
+            const list = userNotifications[currentUserPhone] || [];
+
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div id="no-notifications-msg" class="text-center text-xs text-gray-500 py-8 border border-dashed border-gray-800 rounded-2xl">
+                        <i class="fa-regular fa-bell-slash text-2xl mb-2 text-gray-700 block"></i>
+                        No notifications right now.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = list.map(notif => {
+                let badgeIcon = 'fa-circle-check text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+                if (notif.type === 'rejected') badgeIcon = 'fa-circle-xmark text-red-400 bg-red-500/10 border-red-500/20';
+                if (notif.type === 'system') badgeIcon = 'fa-circle-info text-blue-400 bg-blue-500/10 border-blue-500/20';
+                if (notif.type === 'welcome') badgeIcon = 'fa-gift text-amber-400 bg-amber-500/10 border-amber-500/20';
+                
+                return `
+                    <div class="bg-gray-950 p-3.5 rounded-2xl border border-gray-800 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-white flex items-center space-x-1.5">
+                                <i class="fa-solid ${badgeIcon.split(' ')[0]} ${badgeIcon.split(' ')[1]} text-[11px]"></i>
+                                <span>${notif.title}</span>
+                            </span>
+                            <span class="text-[10px] text-gray-500">${notif.time}</span>
+                        </div>
+                        <p class="text-xs text-gray-300 leading-relaxed pl-5">${notif.message}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadUsers() {
+            try {
+                const stored = localStorage.getItem('neste_registered_users');
+                const storedMap = localStorage.getItem('neste_code_map');
+                if (stored && storedMap) {
+                    codeToUserMap = JSON.parse(storedMap);
+                    const parsedUsers = JSON.parse(stored);
+                    
+                    defaultUserPhones.forEach(phone => {
+                        if (parsedUsers[phone]) {
+                            parsedUsers[phone].balance = 0.00;
+                            parsedUsers[phone].invested = 0.00;
+                            parsedUsers[phone].earnings = 0.00;
+                            parsedUsers[phone].bonus = 0.00;
+                            parsedUsers[phone].activeInvestments = [];
+                        } else {
+                            parsedUsers[phone] = JSON.parse(JSON.stringify(defaultUsers[phone]));
+                        }
+                    });
+
+                    Object.keys(parsedUsers).forEach(phone => {
+                        const isDefault = defaultUserPhones.includes(phone) || parsedUsers[phone].isDefault;
+                        parsedUsers[phone].isDefault = isDefault;
+                        if (parsedUsers[phone].referralBonus === undefined) {
+                            parsedUsers[phone].referralBonus = isDefault ? 50.00 : 5.00;
+                        }
+                    });
+                    return parsedUsers;
+                }
+            } catch (e) {
+                console.error('Could not load users from localStorage', e);
+            }
+            return JSON.parse(JSON.stringify(defaultUsers));
+        }
+
+        function saveUsers() {
+            try {
+                if (currentUserPhone && registeredUsers[currentUserPhone]) {
+                    registeredUsers[currentUserPhone] = {
+                        password: registeredUsers[currentUserPhone].password,
+                        inviteCode: registeredUsers[currentUserPhone].inviteCode,
+                        balance: userBalance !== undefined ? userBalance : 0,
+                        invested: totalInvested !== undefined ? totalInvested : 0,
+                        earnings: dailyEarnings !== undefined ? dailyEarnings : 0,
+                        bonus: bonusEarned !== undefined ? bonusEarned : 0,
+                        level1: level1UsersCount !== undefined ? level1UsersCount : 0,
+                        checkedIn: hasCheckedInToday || false,
+                        referralBonus: registeredUsers[currentUserPhone].referralBonus !== undefined ? registeredUsers[currentUserPhone].referralBonus : 5.00,
+                        isDefault: registeredUsers[currentUserPhone].isDefault || false,
+                        activeInvestments: activeInvestments || []
+                    };
+                }
+                localStorage.setItem('neste_registered_users', JSON.stringify(registeredUsers));
+                localStorage.setItem('neste_code_map', JSON.stringify(codeToUserMap));
+            } catch (e) {
+                console.error('Could not save users to localStorage', e);
+            }
+        }
+
+        let registeredUsers = loadUsers();
+
+        Object.keys(defaultUsers).forEach(phone => {
+            if (!registeredUsers[phone]) {
+                registeredUsers[phone] = JSON.parse(JSON.stringify(defaultUsers[phone]));
+            } else {
+                if (defaultUserPhones.includes(phone)) {
+                    registeredUsers[phone].balance = 0.00;
+                    registeredUsers[phone].invested = 0.00;
+                    registeredUsers[phone].earnings = 0.00;
+                    registeredUsers[phone].bonus = 0.00;
+                    registeredUsers[phone].activeInvestments = [];
+                }
+            }
+        });
+        saveUsers();
+
+        const tickerMessages = [
+            "+63 928***412 withdrew ₱ 3,500 via GCash [Ref: REF-928120]",
+            "+63 917***890 invested in Neste Growth Fund B (₱ 1,500)",
+            "+63 999***112 earned referral bonus for a new invite!",
+            "+63 908***554 topped up ₱ 5,000 via GCash InstaPay",
+            "+63 956***231 registered and claimed promo code reward!"
+        ];
+        let tickerIndex = 0;
+
+        setInterval(() => {
+            tickerIndex = (tickerIndex + 1) % tickerMessages.length;
+            const tickerEl = document.getElementById('ticker-text');
+            if (tickerEl) {
+                tickerEl.style.opacity = '0';
+                setTimeout(() => {
+                    tickerEl.innerText = tickerMessages[tickerIndex];
+                    tickerEl.style.opacity = '1';
+                }, 300);
+            }
+        }, 4000);
+
+        function sendSmsOtp() {
+            if (otpTimerSeconds > 0) return;
+
+            const rawPhone = document.getElementById('phone-input').value.trim();
+            let phone = rawPhone.replace(/[\s\-\+]/g, '');
+            if (phone.startsWith('63')) phone = phone.substring(2);
+            if (phone.startsWith('0')) phone = phone.substring(1);
+
+            if (!phone || phone.length < 9) {
+                showToast('Please enter a valid phone number before requesting OTP.', 'error');
+                return;
+            }
+
+            if (phone in registeredUsers) {
+                showToast('This phone number is already registered. Please login!', 'error');
+                return;
+            }
+
+            generatedOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+            document.getElementById('sms-code-display').innerText = generatedOtpCode;
+            showSmsBanner();
+
+            addAdminLog(`SMS OTP requested for +63 ${phone}. Simulated OTP Code: ${generatedOtpCode}`);
+            showToast('SMS Verification OTP sent! Check top notification.', 'success');
+
+            startOtpCountdown();
+        }
+
+        function startOtpCountdown() {
+            otpTimerSeconds = 60;
+            const btn = document.getElementById('send-otp-btn');
+            const timerLabel = document.getElementById('otp-timer-label');
+            const countdownEl = document.getElementById('otp-countdown');
+
+            btn.disabled = true;
+            btn.className = "bg-gray-800 text-gray-500 text-xs font-bold px-3.5 py-3 rounded-xl cursor-not-allowed border border-gray-700 shrink-0";
+            btn.innerText = "OTP Sent";
+            timerLabel.classList.remove('hidden');
+            countdownEl.innerText = otpTimerSeconds;
+
+            if (otpCountdownInterval) clearInterval(otpCountdownInterval);
+
+            otpCountdownInterval = setInterval(() => {
+                otpTimerSeconds--;
+                countdownEl.innerText = otpTimerSeconds;
+
+                if (otpTimerSeconds <= 0) {
+                    clearInterval(otpCountdownInterval);
+                    btn.disabled = false;
+                    btn.className = "bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-3 rounded-xl transition shadow-md whitespace-nowrap shrink-0";
+                    btn.innerText = "Resend OTP";
+                    timerLabel.classList.add('hidden');
+                }
+            }, 1000);
+        }
+
+        function showSmsBanner() {
+            const banner = document.getElementById('sms-banner');
+            banner.classList.remove('-translate-y-32', 'opacity-0', 'pointer-events-none');
+            banner.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+        }
+
+        function hideSmsBanner() {
+            const banner = document.getElementById('sms-banner');
+            banner.classList.add('-translate-y-32', 'opacity-0', 'pointer-events-none');
+            banner.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+        }
+
+        function autoFillOtpCode() {
+            if (generatedOtpCode) {
+                document.getElementById('otp-input').value = generatedOtpCode;
+                showToast('OTP Code auto-filled!', 'success');
+                hideSmsBanner();
+            }
+        }
+
+        function handleAuthSubmit(event) {
+            event.preventDefault();
+            
+            if (currentAuthMode === 'admin') {
+                const key = document.getElementById('admin-key-input').value.trim();
+                if (key === 'admin123' || key === 'admin') {
+                    showToast('Admin Access Granted! Loading Admin Control Panel...', 'success');
+                    document.getElementById('auth-view').classList.add('hidden');
+                    document.getElementById('admin-dashboard-view').classList.remove('hidden');
+                    switchAdminSubTab('overview');
+                    addAdminLog("Administrator signed into Admin Control Portal.");
+                } else {
+                    showToast('Invalid Admin Key. Access Denied!', 'error');
+                }
+                return;
+            }
+
+            const rawPhone = document.getElementById('phone-input').value.trim();
+            const password = document.getElementById('password-input').value.trim();
+            const rawInviteCode = document.getElementById('invite-input').value.trim();
+            const inviteCode = rawInviteCode.replace(/\s+/g, '').toUpperCase();
+
+            let phone = rawPhone.replace(/[\s\-\+]/g, '');
+            if (phone.startsWith('63')) phone = phone.substring(2);
+            if (phone.startsWith('0')) phone = phone.substring(1);
+
+            if (!phone || phone.length < 9) {
+                showToast('Please enter a valid phone number.', 'error');
+                return;
+            }
+
+            if (currentAuthMode === 'login') {
+                if (!(phone in registeredUsers)) {
+                    showToast('Phone number not registered. Please register first!', 'error');
+                    return;
+                }
+
+                if (registeredUsers[phone].password !== password) {
+                    showToast('Incorrect password! Please check your credentials.', 'error');
+                    return;
+                }
+
+                currentUserPhone = phone;
+                loadUserData(phone);
+
+                const maskedPhone = "+63 " + phone.substring(0, 3) + "•••" + phone.slice(-3);
+                document.getElementById('user-display-phone').innerText = maskedPhone;
+
+                document.getElementById('auth-view').classList.add('hidden');
+                document.getElementById('dashboard-view').classList.remove('hidden');
+                updateDashboardDisplay();
+                renderActiveInvestments();
+                renderUserWithdrawalHistory();
+                updateNotificationBellUI();
+                showToast('Welcome back to Neste!', 'success');
+
+            } else {
+                if (phone in registeredUsers) {
+                    showToast('This phone number is already registered. Please sign in.', 'error');
+                    return;
+                }
+
+                const userEnteredOtp = document.getElementById('otp-input').value.trim();
+                if (!generatedOtpCode) {
+                    showToast('Please tap "Send OTP" to receive your verification code first.', 'error');
+                    return;
+                }
+                if (!userEnteredOtp || userEnteredOtp !== generatedOtpCode) {
+                    showToast('Invalid SMS OTP Code! Please check and try again.', 'error');
+                    return;
+                }
+
+                if (password.length < 6) {
+                    showToast('Password must be at least 6 characters long.', 'error');
+                    return;
+                }
+
+                const newInviteCode = 'NEST' + Math.floor(100 + Math.random() * 900);
+                
+                let codeBonus = 0.00;
+                if (inviteCode === 'NEST273') codeBonus = 20.00;
+                else if (inviteCode === 'NEST321') codeBonus = 15.00;
+                else if (inviteCode === 'NEST456') codeBonus = 10.00;
+
+                registeredUsers[phone] = {
+                    password: password,
+                    inviteCode: newInviteCode,
+                    balance: codeBonus,
+                    invested: 0.00,
+                    earnings: 0.00,
+                    bonus: codeBonus,
+                    level1: 0,
+                    checkedIn: false,
+                    referralBonus: 5.00,
+                    isDefault: false,
+                    activeInvestments: []
+                };
+                codeToUserMap[newInviteCode] = phone;
+
+                if (codeBonus > 0) {
+                    addNotificationForUser(
+                        phone,
+                        '🎁 Promo Bonus Credited!',
+                        `Special Reward Unlocked! You received ₱ ${codeBonus.toFixed(2)} bonus for registering with code ${inviteCode}.`,
+                        'welcome'
+                    );
+                } else {
+                    addNotificationForUser(
+                        phone,
+                        '👋 Welcome to Neste!',
+                        `Account created successfully! Your invite bonus rate is set at ₱ 5.00 per invite.`,
+                        'system'
+                    );
+                }
+
+                let directReferrerPhone = null;
+                if (inviteCode && inviteCode in codeToUserMap) {
+                    const referrerPhone = codeToUserMap[inviteCode];
+                    if (referrerPhone && referrerPhone in registeredUsers) {
+                        directReferrerPhone = referrerPhone;
+                        const referrer = registeredUsers[referrerPhone];
+                        referrer.level1 += 1;
+
+                        const bonusAmount = referrer.referralBonus !== undefined ? referrer.referralBonus : 5.00;
+
+                        if (bonusAmount > 0) {
+                            referrer.balance += bonusAmount;
+                            referrer.earnings += bonusAmount;
+                            referrer.bonus += bonusAmount;
+
+                            addNotificationForUser(
+                                referrerPhone, 
+                                'Referral Bonus Received!', 
+                                `A new user registered using your invite code ${inviteCode}. You received +₱ ${bonusAmount.toFixed(2)} automatically!`, 
+                                'system'
+                            );
+
+                            addAdminLog(`Referral bonus of ₱ ${bonusAmount.toFixed(2)} credited to +63 ${referrerPhone} for registration under code ${inviteCode}.`);
+
+                            if (currentUserPhone === referrerPhone) {
+                                loadUserData(referrerPhone);
+                                updateDashboardDisplay();
+                                addTransactionRecord(`Referral Bonus (${inviteCode})`, bonusAmount, 'yield', 'Credited to Balance');
+                            }
+                        }
+                    }
+                }
+
+                saveUsers();
+                addAdminLog(`New regular user registered: +63 ${phone} (Code: ${newInviteCode}). Initial rate per invite: ₱ 5.00.`);
+                
+                currentUserPhone = phone;
+                if (codeBonus > 0) {
+                    addTransactionRecord(`${inviteCode} Promo Bonus Reward`, codeBonus, 'checkin', 'Registration Promo Code Credit');
+                }
+
+                generatedOtpCode = null;
+                document.getElementById('otp-input').value = '';
+
+                showToast(`Registered successfully with verified SMS OTP!`, 'success');
+                switchAuthTab('login');
+                document.getElementById('phone-input').value = rawPhone;
+                document.getElementById('password-input').value = password;
+            }
+        }
+
+        function loadUserData(phone) {
+            const data = registeredUsers[phone];
+            userBalance = data.balance;
+            totalInvested = data.invested;
+            dailyEarnings = data.earnings;
+            bonusEarned = data.bonus;
+            level1UsersCount = data.level1;
+            hasCheckedInToday = data.checkedIn || false;
+            activeInvestments = data.activeInvestments || [];
+            document.getElementById('ref-link').innerText = data.inviteCode;
+
+            const currentRate = data.referralBonus !== undefined ? data.referralBonus : (data.isDefault ? 50.00 : 5.00);
+            const rateEl = document.getElementById('current-user-invite-rate');
+            if (rateEl) rateEl.innerText = `₱ ${currentRate.toFixed(2)}`;
+
+            if (hasCheckedInToday) {
+                const btn = document.getElementById('checkin-btn');
+                btn.className = "bg-gray-800 text-gray-500 text-xs font-semibold px-3 py-2 rounded-xl cursor-not-allowed flex items-center space-x-1 border border-gray-700";
+                btn.innerHTML = `<i class="fa-solid fa-circle-check text-neste-500"></i><span>Claimed for Today</span>`;
+            } else {
+                resetCheckInButtonUI();
+            }
+        }
+
+        function investInPlan(planName, price, dailyReturn, cycleDays) {
+            if (userBalance < price) {
+                showToast('Insufficient balance! Please top up first.', 'error');
+                openModal('topup-modal');
+                return;
+            }
+
+            userBalance -= price;
+            totalInvested += price;
+            
+            const planObj = {
+                id: 'inv_' + Date.now(),
+                name: planName,
+                price: price,
+                dailyReturn: dailyReturn,
+                cycleDays: cycleDays,
+                claimedDays: 0,
+                claimedToday: false,
+                isExpired: false
+            };
+            activeInvestments.push(planObj);
+
+            saveUsers();
+            updateDashboardDisplay();
+            renderActiveInvestments();
+            addTransactionRecord(`Invested in ${planName}`, price, 'invest', `${cycleDays} Days Cycle`);
+            addAdminLog(`User +63 ${currentUserPhone} invested in ${planName} (₱ ${price}).`);
+            showToast(`Successfully invested in ${planName}!`, 'success');
+        }
+
+        function claimPlanIncome(id) {
+            const plan = activeInvestments.find(p => p.id === id);
+            if (!plan) return;
+
+            if (plan.isExpired || (plan.claimedDays || 0) >= plan.cycleDays) {
+                showToast('This investment plan has expired after reaching its full cycle!', 'error');
+                return;
+            }
+
+            if (plan.claimedToday) {
+                showToast('Already claimed yield for this plan today!', 'error');
+                return;
+            }
+
+            plan.claimedToday = true;
+            plan.claimedDays = (plan.claimedDays || 0) + 1;
+            dailyEarnings += plan.dailyReturn;
+
+            if (plan.claimedDays >= plan.cycleDays) {
+                plan.isExpired = true;
+                showToast(`Plan ${plan.name} has completed its full ${plan.cycleDays}-day cycle and expired!`, 'info');
+            } else {
+                showToast(`Claimed +₱ ${plan.dailyReturn.toFixed(2)} daily income! (${plan.claimedDays}/${plan.cycleDays} Days)`, 'success');
+            }
+
+            saveUsers();
+            updateDashboardDisplay();
+            renderActiveInvestments();
+            addTransactionRecord(`${plan.name} Daily Yield`, plan.dailyReturn, 'yield', `Day ${plan.claimedDays}/${plan.cycleDays} Claimed`);
+        }
+
+        function renderActiveInvestments() {
+            const container = document.getElementById('active-plans-list');
+            const emptyState = document.getElementById('no-active-plans');
+
+            if (!activeInvestments || activeInvestments.length === 0) {
+                emptyState.classList.remove('hidden');
+                container.innerHTML = '';
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            container.innerHTML = activeInvestments.map(plan => {
+                const claimedDays = plan.claimedDays || 0;
+                const cycleDays = plan.cycleDays || 20;
+                const isExpired = plan.isExpired || claimedDays >= cycleDays;
+
+                let actionButton = '';
+                if (isExpired) {
+                    actionButton = `
+                        <button disabled class="bg-red-500/10 text-red-400 text-[11px] font-bold px-3 py-1.5 rounded-xl border border-red-500/20 cursor-not-allowed flex items-center space-x-1">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <span>Expired</span>
+                        </button>
+                    `;
+                } else if (plan.claimedToday) {
+                    actionButton = `
+                        <button onclick="claimPlanIncome('${plan.id}')" class="bg-gray-800 text-gray-500 text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-gray-700 cursor-not-allowed flex items-center space-x-1">
+                            <i class="fa-solid fa-circle-check text-neste-500"></i>
+                            <span>Claimed Today</span>
+                        </button>
+                    `;
+                } else {
+                    actionButton = `
+                        <button onclick="claimPlanIncome('${plan.id}')" class="bg-neste-600 hover:bg-neste-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-md transition flex items-center space-x-1">
+                            <i class="fa-solid fa-hand-holding-dollar"></i>
+                            <span>Claim ₱ ${plan.dailyReturn}</span>
+                        </button>
+                    `;
+                }
+
+                return `
+                    <div class="bg-gray-950 border ${isExpired ? 'border-red-500/30' : 'border-gray-800/80'} rounded-2xl p-4 flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center space-x-2 mb-1">
+                                <span class="w-2 h-2 rounded-full ${isExpired ? 'bg-red-500' : 'bg-neste-500 animate-pulse'}"></span>
+                                <h4 class="font-bold text-white text-xs">${plan.name}</h4>
+                            </div>
+                            <div class="text-[10px] text-gray-400 space-x-2">
+                                <span>Cost: <b class="text-white">₱ ${plan.price.toLocaleString()}</b></span>
+                                <span>•</span>
+                                <span>Daily Yield: <b class="text-neste-400">₱ ${plan.dailyReturn.toFixed(2)}</b></span>
+                            </div>
+                            <div class="text-[10px] ${isExpired ? 'text-red-400 font-semibold' : 'text-neste-400 font-medium'} mt-1 flex items-center space-x-1">
+                                <i class="fa-solid ${isExpired ? 'fa-calendar-xmark' : 'fa-calendar-days'} text-[9px]"></i>
+                                <span>${isExpired ? `Expired (${claimedDays}/${cycleDays} days claimed)` : `Days claimed: ${claimedDays}/${cycleDays}`}</span>
+                            </div>
+                        </div>
+                        <div>
+                            ${actionButton}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function claimDailyCheckIn() {
+            if (hasCheckedInToday) {
+                showToast('You have already claimed your daily check-in bonus today!', 'error');
+                return;
+            }
+
+            const checkInBonus = 1.50;
+            bonusEarned += checkInBonus; 
+            dailyEarnings += checkInBonus; 
+            hasCheckedInToday = true;
+
+            saveUsers();
+            updateDashboardDisplay();
+            addTransactionRecord('Daily Check-in Bonus', checkInBonus, 'checkin', 'Credited to Today\'s Earnings');
+
+            const btn = document.getElementById('checkin-btn');
+            btn.className = "bg-gray-800 text-gray-500 text-xs font-semibold px-3 py-2 rounded-xl cursor-not-allowed flex items-center space-x-1 border border-gray-700";
+            btn.innerHTML = `<i class="fa-solid fa-circle-check text-neste-500"></i><span>Claimed for Today</span>`;
+
+            showToast(`Daily check-in reward +₱ ${checkInBonus.toFixed(2)} added to Today's Earnings!`, 'success');
+        }
+
+        function executeMidnightSettlement() {
+            if (dailyEarnings > 0 || hasCheckedInToday) {
+                const earnedAmount = dailyEarnings;
+                userBalance += earnedAmount; 
+                dailyEarnings = 0.00;
+                
+                hasCheckedInToday = false;
+                activeInvestments.forEach(p => p.claimedToday = false);
+
+                saveUsers();
+                resetCheckInButtonUI();
+                renderActiveInvestments();
+                updateDashboardDisplay();
+                
+                addTransactionRecord('12:00 AM Daily Yield Settlement', earnedAmount, 'topup', 'Credited to Balance');
+                showToast(`Midnight Settlement: ₱ ${earnedAmount.toLocaleString('en-US', {minimumFractionDigits: 2})} credited to your balance!`, 'success');
+            } else {
+                showToast('Midnight Settlement: No pending daily earnings.', 'info');
+            }
+        }
+
+        function resetCheckInButtonUI() {
+            const btn = document.getElementById('checkin-btn');
+            btn.className = "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-md transition flex items-center space-x-1";
+            btn.innerHTML = `<i class="fa-solid fa-gift text-xs"></i><span>Claim ₱ 1.50</span>`;
+        }
+
+        function simulateMidnightSettlement() {
+            executeMidnightSettlement();
+        }
+
+        function switchAuthTab(mode) {
+            currentAuthMode = mode;
+            const loginBtn = document.getElementById('tab-login');
+            const signupBtn = document.getElementById('tab-signup');
+            const adminBtn = document.getElementById('tab-admin');
+
+            const phoneGroup = document.getElementById('phone-group');
+            const otpGroup = document.getElementById('otp-group');
+            const adminKeyGroup = document.getElementById('admin-key-group');
+            const passwordGroup = document.getElementById('password-group');
+            const inviteGroup = document.getElementById('invite-code-group');
+            
+            const submitBtnText = document.getElementById('auth-btn-text');
+            const userDemoBtn = document.getElementById('user-demo-btn');
+            const adminDemoBtn = document.getElementById('admin-demo-btn');
+
+            loginBtn.className = "py-2 text-xs font-semibold rounded-lg text-gray-400 hover:text-white transition-all";
+            signupBtn.className = "py-2 text-xs font-semibold rounded-lg text-gray-400 hover:text-white transition-all";
+            adminBtn.className = "py-2 text-xs font-semibold rounded-lg text-amber-400/70 hover:text-amber-300 transition-all flex items-center justify-center space-x-1";
+
+            if (mode === 'login') {
+                loginBtn.className = "py-2 text-xs font-semibold rounded-lg bg-neste-600 text-white shadow transition-all";
+                phoneGroup.classList.remove('hidden');
+                otpGroup.classList.add('hidden');
+                adminKeyGroup.classList.add('hidden');
+                passwordGroup.classList.remove('hidden');
+                inviteGroup.classList.add('hidden');
+                submitBtnText.innerText = "Sign In to Dashboard";
+                userDemoBtn.classList.remove('hidden');
+                adminDemoBtn.classList.add('hidden');
+            } else if (mode === 'signup') {
+                signupBtn.className = "py-2 text-xs font-semibold rounded-lg bg-neste-600 text-white shadow transition-all";
+                phoneGroup.classList.remove('hidden');
+                otpGroup.classList.remove('hidden');
+                adminKeyGroup.classList.add('hidden');
+                passwordGroup.classList.remove('hidden');
+                inviteGroup.classList.remove('hidden');
+                submitBtnText.innerText = "Create Account";
+                userDemoBtn.classList.remove('hidden');
+                adminDemoBtn.classList.add('hidden');
+            } else if (mode === 'admin') {
+                adminBtn.className = "py-2 text-xs font-semibold rounded-lg bg-amber-500 text-gray-950 shadow transition-all flex items-center justify-center space-x-1 font-bold";
+                phoneGroup.classList.add('hidden');
+                otpGroup.classList.add('hidden');
+                adminKeyGroup.classList.remove('hidden');
+                passwordGroup.classList.add('hidden');
+                inviteGroup.classList.add('hidden');
+                submitBtnText.innerText = "Login as Administrator";
+                userDemoBtn.classList.add('hidden');
+                adminDemoBtn.classList.remove('hidden');
+            }
+        }
+
+        function switchAdminSubTab(tab) {
+            const overviewSec = document.getElementById('admin-section-overview');
+            const topupsSec = document.getElementById('admin-section-topups');
+            const withdrawalsSec = document.getElementById('admin-section-withdrawals');
+            const referralsSec = document.getElementById('admin-section-referrals');
+
+            const navOverview = document.getElementById('admin-nav-overview');
+            const navTopups = document.getElementById('admin-nav-topups');
+            const navWithdrawals = document.getElementById('admin-nav-withdrawals');
+            const navReferrals = document.getElementById('admin-nav-referrals');
+
+            [navOverview, navTopups, navWithdrawals, navReferrals].forEach(btn => {
+                btn.className = "py-2 rounded-xl text-gray-400 hover:text-white transition flex items-center justify-center space-x-1";
+            });
+
+            overviewSec.classList.add('hidden');
+            topupsSec.classList.add('hidden');
+            withdrawalsSec.classList.add('hidden');
+            referralsSec.classList.add('hidden');
+
+            if (tab === 'overview') {
+                overviewSec.classList.remove('hidden');
+                navOverview.className = "py-2 rounded-xl bg-amber-500 text-gray-950 font-bold transition flex items-center justify-center space-x-1";
+                renderAdminOverviewStats();
+            } else if (tab === 'topups') {
+                topupsSec.classList.remove('hidden');
+                navTopups.className = "py-2 rounded-xl bg-amber-500 text-gray-950 font-bold transition flex items-center justify-center space-x-1";
+                renderAdminTopups();
+            } else if (tab === 'withdrawals') {
+                withdrawalsSec.classList.remove('hidden');
+                navWithdrawals.className = "py-2 rounded-xl bg-amber-500 text-gray-950 font-bold transition flex items-center justify-center space-x-1";
+                renderAdminWithdrawals();
+            } else if (tab === 'referrals') {
+                referralsSec.classList.remove('hidden');
+                navReferrals.className = "py-2 rounded-xl bg-amber-500 text-gray-950 font-bold transition flex items-center justify-center space-x-1";
+                renderDefaultUserReferralSettingsList();
+            }
+        }
+
+        function switchAdminUserCategory(category) {
+            currentAdminUserCategory = category;
+            const tabDefault = document.getElementById('admin-user-tab-default');
+            const tabRegular = document.getElementById('admin-user-tab-regular');
+            const infoBanner = document.getElementById('admin-user-category-info-banner');
+
+            if (category === 'default') {
+                tabDefault.className = "py-2 rounded-xl bg-amber-500 text-gray-950 font-bold transition flex items-center justify-center space-x-1.5 shadow";
+                tabRegular.className = "py-2 rounded-xl bg-gray-800 text-gray-400 font-medium hover:text-white transition flex items-center justify-center space-x-1.5";
+                if (infoBanner) {
+                    infoBanner.className = "bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 mb-4 text-[11px] text-amber-200";
+                    infoBanner.innerHTML = `<i class="fa-solid fa-user-shield mr-1 text-amber-400"></i><b>ADMIN ACCOUNTS RATE CONTROL:</b> Custom referral rate for admin accounts. Enter value and tap <b>Save Rate</b>.`;
+                }
+            } else {
+                tabRegular.className = "py-2 rounded-xl bg-emerald-600 text-white font-bold transition flex items-center justify-center space-x-1.5 shadow";
+                tabDefault.className = "py-2 rounded-xl bg-gray-800 text-gray-400 font-medium hover:text-white transition flex items-center justify-center space-x-1.5";
+                if (infoBanner) {
+                    infoBanner.className = "bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-3 mb-4 text-[11px] text-emerald-200";
+                    infoBanner.innerHTML = `<i class="fa-solid fa-circle-check mr-1 text-emerald-400"></i><b>FIXED ₱ 5.00 DEFAULT:</b> All regular user accounts strictly earn ₱ 5.00 per invite rate.`;
+                }
+            }
+            renderDefaultUserReferralSettingsList();
+        }
+
+        function clearAdminCodeSearch() {
+            const searchInput = document.getElementById('admin-code-search-input');
+            if (searchInput) {
+                searchInput.value = '';
+                renderDefaultUserReferralSettingsList();
+            }
+        }
+
+        function renderAdminOverviewStats() {
+            const totalUsers = Object.keys(registeredUsers).length;
+            const approvedPayoutVol = withdrawalRequests.reduce((sum, r) => sum + (r.status === 'Approved' ? r.amount : 0), 0);
+            const pendingTopupsCount = topupRequests.filter(r => r.status === 'Pending').length;
+            
+            let totalRefBonusPaid = 0;
+            Object.keys(registeredUsers).forEach(phone => {
+                const user = registeredUsers[phone];
+                totalRefBonusPaid += user.bonus || 0;
+            });
+
+            document.getElementById('stat-total-users').innerText = totalUsers;
+            document.getElementById('stat-active-plans').innerText = activeInvestments.length;
+            document.getElementById('stat-payout-vol').innerText = '₱ ' + approvedPayoutVol.toLocaleString();
+            document.getElementById('stat-pending-topups').innerText = pendingTopupsCount;
+            document.getElementById('stat-total-ref-bonus').innerText = '₱ ' + totalRefBonusPaid.toLocaleString('en-US', {minimumFractionDigits: 2});
+
+            renderAdminActivityLog();
+        }
+
+        function updateUserReferralRate(phone, newRate) {
+            const numericRate = parseFloat(newRate);
+            
+            if (isNaN(numericRate) || numericRate < 0) {
+                showToast('Please enter a valid referral rate (₱ 0.00 or higher).', 'error');
+                return;
+            }
+
+            if (!registeredUsers[phone]) {
+                showToast('User account not found.', 'error');
+                return;
+            }
+
+            registeredUsers[phone].referralBonus = numericRate;
+            saveUsers();
+
+            if (currentUserPhone === phone) {
+                const rateEl = document.getElementById('current-user-invite-rate');
+                if (rateEl) rateEl.innerText = `₱ ${numericRate.toFixed(2)}`;
+            }
+
+            const accountTypeStr = (registeredUsers[phone].isDefault || defaultUserPhones.includes(phone)) ? 'Admin' : 'Regular';
+            
+            addAdminLog(`Updated referral bonus rate for ${accountTypeStr} user +63 ${phone} to ₱ ${numericRate.toFixed(2)}.`);
+
+            addNotificationForUser(
+                phone,
+                'Referral Bonus Rate Updated',
+                `An administrator has updated your invite bonus rate to ₱ ${numericRate.toFixed(2)} per successful invite.`,
+                'system'
+            );
+
+            showToast(`Referral rate for +63 ${phone} updated to ₱ ${numericRate.toFixed(2)}!`, 'success');
+            renderDefaultUserReferralSettingsList();
+        }
+
+        function renderDefaultUserReferralSettingsList() {
+            const container = document.getElementById('admin-user-referral-list');
+            const searchInput = document.getElementById('admin-code-search-input');
+            const clearBtn = document.getElementById('admin-code-search-clear');
+            const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+            if (clearBtn) {
+                if (searchQuery.length > 0) clearBtn.classList.remove('hidden');
+                else clearBtn.classList.add('hidden');
+            }
+
+            let selectedPhones = Object.keys(registeredUsers).filter(phone => {
+                const isDefault = registeredUsers[phone].isDefault || defaultUserPhones.includes(phone);
+                return currentAdminUserCategory === 'default' ? isDefault : !isDefault;
+            });
+
+            if (searchQuery.length > 0) {
+                selectedPhones = selectedPhones.filter(phone => {
+                    const user = registeredUsers[phone];
+                    const codeMatch = user.inviteCode && user.inviteCode.toLowerCase().includes(searchQuery);
+                    const phoneMatch = phone.toLowerCase().includes(searchQuery);
+                    return codeMatch || phoneMatch;
+                });
+            }
+
+            if (selectedPhones.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-xs text-gray-500 py-8 border border-dashed border-gray-800 rounded-2xl">
+                        <i class="fa-solid fa-magnifying-glass text-2xl text-gray-700 mb-2 block"></i>
+                        ${searchQuery ? `No ${currentAdminUserCategory} users found matching "${searchQuery}".` : `No ${currentAdminUserCategory} user accounts registered.`}
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = selectedPhones.map(phone => {
+                const user = registeredUsers[phone];
+                const isDefault = user.isDefault || defaultUserPhones.includes(phone);
+                const currentBonus = isDefault ? (user.referralBonus !== undefined ? user.referralBonus : 50.00) : 5.00;
+                const totalBonusPaid = user.bonus || 0;
+
+                return `
+                    <div class="bg-gray-950 p-3.5 rounded-2xl border ${isDefault ? 'border-amber-500/40' : 'border-emerald-500/30'} space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs font-bold text-white">+63 ${phone}</span>
+                                    <span class="text-[9px] ${isDefault ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'} border px-1.5 py-0.5 rounded-md font-bold uppercase">
+                                        ${isDefault ? 'Admin Account' : 'Regular Account'}
+                                    </span>
+                                </div>
+                                <span class="text-[10px] text-gray-400 block mt-0.5">
+                                    Code: <b class="font-mono text-amber-400 font-semibold">${user.inviteCode}</b>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2 bg-gray-900/90 p-2 rounded-xl border border-gray-800 text-[10px]">
+                            <div>
+                                <span class="text-gray-400 block">Invites:</span>
+                                <span class="font-bold text-white text-xs">${user.level1 || 0} Users</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400 block">Balance:</span>
+                                <span class="font-bold text-neste-400 text-xs">₱ ${(user.balance || 0).toFixed(2)}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400 block">Total Bonus:</span>
+                                <span class="font-bold text-white text-xs">₱ ${totalBonusPaid.toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        ${isDefault ? `
+                        <div class="bg-gray-900 border border-amber-500/20 rounded-xl p-2.5 flex items-center justify-between space-x-2">
+                            <div class="flex items-center space-x-1.5 flex-1">
+                                <label class="text-[10px] font-bold text-amber-400 whitespace-nowrap">Admin Rate (₱):</label>
+                                <div class="relative flex-1">
+                                    <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[11px]">₱</span>
+                                    <input type="number" step="0.5" id="rate-input-${phone}" value="${currentBonus}" class="w-full bg-gray-950 border border-gray-700 rounded-lg py-1 pl-5 pr-2 text-xs text-white font-bold focus:outline-none focus:border-amber-400">
+                                </div>
+                            </div>
+                            <button onclick="updateUserReferralRate('${phone}', document.getElementById('rate-input-${phone}').value)" class="bg-amber-500 hover:bg-amber-400 text-gray-950 font-extrabold text-[10px] px-3 py-1.5 rounded-lg shadow transition flex items-center space-x-1 shrink-0">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span>Save Rate</span>
+                            </button>
+                        </div>
+                        ` : `
+                        <div class="bg-gray-900/50 border border-gray-800/80 rounded-xl p-2 flex items-center justify-between text-[11px]">
+                            <span class="text-gray-400">Fixed Regular Rate:</span>
+                            <span class="font-bold text-emerald-400">₱ 5.00 / Invite</span>
+                        </div>
+                        `}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('password-input');
+            const eyeIcon = document.getElementById('eye-icon');
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.className = "fa-solid fa-eye-slash";
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.className = "fa-solid fa-eye";
+            }
+        }
+
+        function fillDemoCredentials() {
+            document.getElementById('phone-input').value = '9752161671';
+            document.getElementById('password-input').value = 'securepass123';
+        }
+
+        function fillAdminCredentials() {
+            document.getElementById('admin-key-input').value = 'admin123';
+        }
+
+        function logout() {
+            saveUsers();
+            document.getElementById('phone-input').value = '';
+            document.getElementById('password-input').value = '';
+            document.getElementById('dashboard-view').classList.add('hidden');
+            document.getElementById('auth-view').classList.remove('hidden');
+        }
+
+        function logoutAdmin() {
+            document.getElementById('admin-key-input').value = '';
+            document.getElementById('admin-dashboard-view').classList.add('hidden');
+            document.getElementById('auth-view').classList.remove('hidden');
+        }
+
+        function refreshBalance() {
+            const icon = document.getElementById('refresh-icon');
+            icon.classList.add('fa-spin');
+            setTimeout(() => {
+                icon.classList.remove('fa-spin');
+                showToast('Balance updated successfully.', 'success');
+            }, 800);
+        }
+
+        function openModal(modalId) {
+            if (modalId === 'withdrawal-history-modal') {
+                renderUserWithdrawalHistory();
+            }
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function openWithdrawalsFromRecords() {
+            closeModal('records-modal');
+            openModal('withdrawal-history-modal');
+        }
+
+        function processTopUp() {
+            const amount = parseFloat(document.getElementById('topup-amount').value) || 0;
+            if (amount <= 0) {
+                showToast('Please enter a valid top-up amount.', 'error');
+                return;
+            }
+
+            window.pendingTopupAmount = amount;
+            uploadedScreenshotDataUrl = null;
+            document.getElementById('gcash-screenshot-input').value = '';
+            document.getElementById('gcash-ref-number-input').value = '';
+            document.getElementById('gcash-upload-placeholder').classList.remove('hidden');
+            document.getElementById('gcash-upload-preview-container').classList.add('hidden');
+
+            closeModal('topup-modal');
+            document.getElementById('gcash-modal-amount').innerText = `₱ ${amount.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+
+            // Open GCash Payment Modal with Screenshot Upload & Reference Number Input
+            openModal('gcash-gateway-modal');
+        }
+
+        function previewGcashScreenshot(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                uploadedScreenshotDataUrl = e.target.result;
+                document.getElementById('gcash-screenshot-preview').src = uploadedScreenshotDataUrl;
+                document.getElementById('gcash-upload-placeholder').classList.add('hidden');
+                document.getElementById('gcash-upload-preview-container').classList.remove('hidden');
+                showToast('Payment screenshot attached successfully!', 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function copyGcNumber() {
+            const gcNum = '09752161671';
+            const textArea = document.createElement("textarea");
+            textArea.value = gcNum;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('GCash Number copied to clipboard!', 'success');
+            } catch (err) {
+                showToast('Failed to copy number', 'error');
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function submitGcashPaymentProof() {
+            const amount = window.pendingTopupAmount || 5000;
+            const refNumber = document.getElementById('gcash-ref-number-input').value.trim();
+
+            if (!refNumber) {
+                showToast('Please enter your GCash reference number.', 'error');
+                return;
+            }
+            if (!uploadedScreenshotDataUrl) {
+                showToast('Please upload the screenshot of your payment.', 'error');
+                return;
+            }
+
+            const topupReq = {
+                id: 'topup_' + Date.now(),
+                userPhone: currentUserPhone,
+                amount: amount,
+                refNumber: refNumber,
+                screenshot: uploadedScreenshotDataUrl,
+                status: 'Pending',
+                date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', Today'
+            };
+
+            topupRequests.unshift(topupReq);
+            saveTopupRequests();
+            addAdminLog(`New top-up request submitted: ₱ ${amount} [Ref: ${refNumber}] by +63 ${currentUserPhone}. Waiting for credit account balance upon admin check.`);
+
+            closeModal('gcash-gateway-modal');
+            showToast('Payment proof submitted! Waiting for credit account balance upon checking by the admin.', 'info');
+        }
+
+        function renderAdminTopups() {
+            const container = document.getElementById('admin-topup-list');
+            if (!container) return;
+
+            if (!topupRequests || topupRequests.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-xs text-gray-500 py-8 border border-dashed border-gray-800 rounded-2xl">
+                        <i class="fa-solid fa-wallet text-2xl text-gray-700 mb-1 block"></i>
+                        No pending top-up verification requests.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = topupRequests.map(req => {
+                const isPending = req.status === 'Pending';
+                const isApproved = req.status === 'Approved';
+                const isRejected = req.status === 'Rejected';
+
+                return `
+                    <div class="bg-gray-950 p-4 rounded-2xl border ${isApproved ? 'border-emerald-500/30' : (isRejected ? 'border-red-500/30' : 'border-amber-500/30')} space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold text-white block">+63 ${req.userPhone}</span>
+                                <span class="text-[10px] text-gray-400">${req.date}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-sm font-black text-neste-400 block">₱ ${req.amount.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                                <span class="${isApproved ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : (isRejected ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20')} border text-[9px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5">
+                                    ${req.status}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-900/90 p-2.5 rounded-xl border border-gray-800 flex justify-between items-center text-xs">
+                            <span class="text-gray-400">Ref Number:</span>
+                            <span class="font-mono text-amber-400 font-bold">${req.refNumber}</span>
+                        </div>
+
+                        ${req.screenshot ? `
+                        <div>
+                            <span class="text-[10px] text-gray-400 block mb-1">Attached Payment Screenshot:</span>
+                            <a href="${req.screenshot}" target="_blank" class="block bg-gray-900 border border-gray-800 rounded-xl p-2 text-center hover:border-neste-500 transition">
+                                <img src="${req.screenshot}" alt="Payment Receipt" class="max-h-36 mx-auto rounded-lg object-contain">
+                                <span class="text-[10px] text-blue-400 mt-1 inline-block"><i class="fa-solid fa-magnifying-glass-plus"></i> Tap to view full size</span>
+                            </a>
+                        </div>
+                        ` : ''}
+
+                        ${isPending ? `
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <button onclick="approveTopup('${req.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold py-2 rounded-xl transition flex items-center justify-center space-x-1 shadow-md">
+                                <i class="fa-solid fa-check text-[10px]"></i>
+                                <span>Approve & Credit</span>
+                            </button>
+                            <button onclick="rejectTopup('${req.id}')" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 text-[11px] font-bold py-2 rounded-xl transition flex items-center justify-center space-x-1 shadow-md">
+                                <i class="fa-solid fa-xmark text-[10px]"></i>
+                                <span>Reject</span>
+                            </button>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function approveTopup(id) {
+            const req = topupRequests.find(r => r.id === id);
+            if (!req || req.status !== 'Pending') return;
+
+            req.status = 'Approved';
+            
+            if (registeredUsers[req.userPhone]) {
+                registeredUsers[req.userPhone].balance += req.amount;
+                if (currentUserPhone === req.userPhone) {
+                    userBalance += req.amount;
+                    updateDashboardDisplay();
+                }
+            }
+
+            saveUsers();
+            saveTopupRequests();
+            renderAdminTopups();
+
+            addNotificationForUser(
+                req.userPhone,
+                'Top-Up Approved & Credited!',
+                `Your GCash top-up payment of ₱ ${req.amount.toLocaleString('en-US', {minimumFractionDigits: 2})} [Ref: ${req.refNumber}] has been verified and credited to your account balance.`,
+                'approval'
+            );
+
+            addTransactionRecord(`GCash Top-Up Approved`, req.amount, 'topup', `Ref: ${req.refNumber}`);
+            addAdminLog(`Approved top-up request [Ref: ${req.refNumber}] for ₱ ${req.amount} (+63 ${req.userPhone}) and credited account balance.`);
+            showToast(`Top-up approved and ₱ ${req.amount.toLocaleString()} credited to user balance!`, 'success');
+        }
+
+        function rejectTopup(id) {
+            const req = topupRequests.find(r => r.id === id);
+            if (!req || req.status !== 'Pending') return;
+
+            req.status = 'Rejected';
+            saveTopupRequests();
+            renderAdminTopups();
+
+            addNotificationForUser(
+                req.userPhone,
+                'Top-Up Rejected',
+                `Your GCash top-up payment of ₱ ${req.amount.toLocaleString('en-US', {minimumFractionDigits: 2})} [Ref: ${req.refNumber}] was rejected by the admin. Please contact support.`,
+                'rejected'
+            );
+
+            addAdminLog(`Rejected top-up request [Ref: ${req.refNumber}] for +63 ${req.userPhone}.`);
+            showToast(`Top-up request rejected.`, 'error');
+        }
+
+        function processWithdrawal() {
+            const nameInput = document.getElementById('withdraw-name').value.trim();
+            const phoneInput = document.getElementById('withdraw-phone').value.trim();
+            const amount = parseFloat(document.getElementById('withdraw-amount').value) || 0;
+
+            if (!nameInput || !phoneInput) {
+                showToast(`Please fill out GCash name and number.`, 'error');
+                return;
+            }
+            if (amount < 200) {
+                showToast('Minimum withdrawal amount is ₱ 200.', 'error');
+                return;
+            }
+            if (amount > userBalance) {
+                showToast('Insufficient account balance.', 'error');
+                return;
+            }
+
+            userBalance -= amount;
+            saveUsers();
+            updateDashboardDisplay();
+            
+            const refNo = generateRefNo();
+
+            const newRequest = {
+                id: 'w_' + Date.now(),
+                refNo: refNo,
+                userPhone: currentUserPhone,
+                userName: nameInput,
+                amount: amount,
+                gcash: phoneInput,
+                status: 'Pending',
+                date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', Today'
+            };
+
+            withdrawalRequests.unshift(newRequest);
+            saveWithdrawalRequests();
+
+            addTransactionRecord(`Withdrawal (${refNo})`, amount, 'withdraw', `${nameInput} (${phoneInput})`);
+            addAdminLog(`Withdrawal request created: [${refNo}] ₱ ${amount} by +63 ${currentUserPhone}.`);
+            renderUserWithdrawalHistory();
+
+            closeModal('withdraw-modal');
+
+            showToast(`Withdrawal [Ref: ${refNo}] submitted! Status: PENDING ADMIN APPROVAL.`, 'success');
+        }
+
+        function addTransactionRecord(title, amount, type = 'withdraw', subtext = '') {
+            const listContainer = document.getElementById('records-list');
+            const noRecords = document.getElementById('no-records-msg');
+            if (noRecords) {
+                noRecords.remove();
+            }
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', Today';
+
+            let iconBgClass = 'bg-neste-500/10 text-neste-400 fa-arrow-down';
+            let amountSign = '+';
+            let amountColor = 'text-neste-400';
+
+            if (type === 'withdraw') {
+                iconBgClass = 'bg-red-500/10 text-red-400 fa-arrow-up';
+                amountSign = '-';
+                amountColor = 'text-red-400';
+            } else if (type === 'checkin') {
+                iconBgClass = 'bg-amber-500/10 text-amber-400 fa-gift';
+                amountSign = '+';
+                amountColor = 'text-amber-400';
+            } else if (type === 'yield') {
+                iconBgClass = 'bg-emerald-500/10 text-emerald-400 fa-hand-holding-dollar';
+                amountSign = '+';
+                amountColor = 'text-emerald-400';
+            } else if (type === 'refund') {
+                iconBgClass = 'bg-blue-500/10 text-blue-400 fa-rotate-left';
+                amountSign = '+';
+                amountColor = 'text-blue-400';
+            } else if (type === 'topup') {
+                iconBgClass = 'bg-blue-500/10 text-blue-400 fa-wallet';
+                amountSign = '+';
+                amountColor = 'text-blue-400';
+            }
+
+            const recordHTML = `
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl ${iconBgClass.split(' ')[0]} ${iconBgClass.split(' ')[1]} flex items-center justify-center">
+                        <i class="fa-solid ${iconBgClass.split(' ')[2]}"></i>
+                    </div>
+                    <div>
+                        <span class="text-xs font-bold text-white block">${title}</span>
+                        <span class="text-[10px] text-gray-400">${subtext ? subtext + ' • ' : ''}${timeStr}</span>
+                    </div>
+                </div>
+                <span class="text-xs font-bold ${amountColor}">${amountSign}₱ ${amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+            `;
+
+            const recordItem = document.createElement('div');
+            recordItem.className = 'bg-gray-950 p-3.5 rounded-2xl border border-gray-800 flex items-center justify-between';
+            recordItem.innerHTML = recordHTML;
+            listContainer.insertBefore(recordItem, listContainer.firstChild);
+        }
+
+        function renderUserWithdrawalHistory() {
+            const container = document.getElementById('withdrawal-records-list');
+            const userRequests = withdrawalRequests.filter(req => req.userPhone === currentUserPhone);
+
+            if (userRequests.length === 0) {
+                container.innerHTML = `
+                    <div id="no-withdrawal-records-msg" class="text-center text-xs text-gray-500 py-10 border border-dashed border-gray-800 rounded-2xl">
+                        <i class="fa-solid fa-money-bill-transfer text-3xl mb-2 text-gray-700 block"></i>
+                        No withdrawal records found.<br>Your payout requests will appear here.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = userRequests.map(req => {
+                let statusBadge = `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1">
+                                    <i class="fa-solid fa-clock text-[9px]"></i><span>Pending</span>
+                                   </span>`;
+
+                if (req.status === 'Approved') {
+                    statusBadge = `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1">
+                                    <i class="fa-solid fa-circle-check text-[9px]"></i><span>Approved</span>
+                                   </span>`;
+                } else if (req.status === 'Rejected') {
+                    statusBadge = `<span class="bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1">
+                                    <i class="fa-solid fa-circle-xmark text-[9px]"></i><span>Rejected & Refunded</span>
+                                   </span>`;
+                }
+
+                return `
+                    <div class="bg-gray-950 p-3.5 rounded-2xl border border-gray-800 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-8 h-8 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center text-xs font-bold">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-bold text-white block">GCash Withdrawal</span>
+                                    <span class="text-[10px] font-mono text-neste-400 font-semibold">${req.refNo || 'REF-000000'}</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-bold text-red-400 block">-₱ ${req.amount.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                                ${statusBadge}
+                            </div>
+                        </div>
+                        <div class="bg-gray-900/80 p-2 rounded-xl border border-gray-800/80 flex justify-between text-[10px] text-gray-400">
+                            <span>Account: <b class="text-white">${req.userName}</b></span>
+                            <span>GCash: <b class="text-white">${req.gcash}</b></span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function setAdminFilter(filter) {
+            currentAdminFilter = filter;
+            ['all', 'pending', 'approved', 'rejected'].forEach(f => {
+                const btn = document.getElementById(`admin-filter-${f}`);
+                if (btn) {
+                    btn.className = filter === f 
+                        ? 'py-1 rounded-lg bg-amber-500/20 text-amber-300 font-medium' 
+                        : 'py-1 rounded-lg bg-gray-800 text-gray-400 font-medium hover:text-white';
+                }
+            });
+            renderAdminWithdrawals();
+        }
+
+        function clearAdminSearch() {
+            const searchInput = document.getElementById('admin-search-input');
+            if (searchInput) {
+                searchInput.value = '';
+                renderAdminWithdrawals();
+            }
+        }
+
+        function renderAdminWithdrawals() {
+            const listContainer = document.getElementById('admin-withdrawal-list');
+            const searchInput = document.getElementById('admin-search-input');
+            const clearBtn = document.getElementById('admin-search-clear');
+            const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+            if (clearBtn) {
+                if (query.length > 0) clearBtn.classList.remove('hidden');
+                else clearBtn.classList.add('hidden');
+            }
+            
+            const pendingCount = withdrawalRequests.filter(r => r.status === 'Pending').length;
+            const approvedCount = withdrawalRequests.filter(r => r.status === 'Approved').length;
+            const rejectedCount = withdrawalRequests.filter(r => r.status === 'Rejected').length;
+            const totalVol = withdrawalRequests.reduce((sum, r) => sum + (r.status === 'Approved' ? r.amount : 0), 0);
+
+            document.getElementById('admin-stat-pending').innerText = pendingCount;
+            document.getElementById('admin-stat-approved').innerText = approvedCount;
+            document.getElementById('admin-stat-rejected').innerText = rejectedCount;
+            document.getElementById('admin-stat-volume').innerText = '₱ ' + totalVol.toLocaleString();
+
+            let filtered = withdrawalRequests;
+
+            if (currentAdminFilter === 'pending') filtered = filtered.filter(r => r.status === 'Pending');
+            if (currentAdminFilter === 'approved') filtered = filtered.filter(r => r.status === 'Approved');
+            if (currentAdminFilter === 'rejected') filtered = filtered.filter(r => r.status === 'Rejected');
+
+            if (query.length > 0) {
+                filtered = filtered.filter(r => 
+                    (r.refNo && r.refNo.toLowerCase().includes(query)) ||
+                    (r.userPhone && r.userPhone.toLowerCase().includes(query)) ||
+                    (r.userName && r.userName.toLowerCase().includes(query)) ||
+                    (r.gcash && r.gcash.toLowerCase().includes(query))
+                );
+            }
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center text-xs text-gray-500 py-8 border border-dashed border-gray-800 rounded-2xl">
+                        <i class="fa-solid fa-magnifying-glass text-2xl text-gray-700 mb-1 block"></i>
+                        ${query ? `No matching withdrawals found for "${query}".` : `No withdrawal records found under "${currentAdminFilter}" filter.`}
+                    </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = filtered.map(req => {
+                const isApproved = req.status === 'Approved';
+                const isRejected = req.status === 'Rejected';
+                const isPending = req.status === 'Pending';
+
+                return `
+                    <div class="bg-gray-950 p-3.5 rounded-2xl border ${isApproved ? 'border-emerald-500/30' : (isRejected ? 'border-red-500/30' : 'border-amber-500/30')} space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs font-bold text-white">+63 ${req.userPhone}</span>
+                                    <span class="text-[10px] text-gray-400">(${req.userName})</span>
+                                </div>
+                                <span class="text-[10px] font-mono text-neste-400 font-semibold block">${req.refNo || 'REF-000000'} • ${req.date}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-black text-amber-400 block">₱ ${req.amount.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                                <span class="${isApproved ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : (isRejected ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20')} border text-[9px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5">
+                                    ${req.status}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-900/90 p-2 rounded-xl border border-gray-800 flex justify-between items-center text-[10px]">
+                            <span class="text-gray-400">GCash Account Number:</span>
+                            <span class="font-mono text-white font-bold">${req.gcash}</span>
+                        </div>
+
+                        ${isPending ? `
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <button onclick="approveWithdrawal('${req.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold py-1.5 rounded-xl transition flex items-center justify-center space-x-1 shadow-md">
+                                <i class="fa-solid fa-check text-[10px]"></i>
+                                <span>Approve</span>
+                            </button>
+                            <button onclick="rejectWithdrawal('${req.id}')" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 text-[11px] font-bold py-1.5 rounded-xl transition flex items-center justify-center space-x-1 shadow-md">
+                                <i class="fa-solid fa-xmark text-[10px]"></i>
+                                <span>Reject & Refund</span>
+                            </button>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function approveWithdrawal(id) {
+            const req = withdrawalRequests.find(r => r.id === id);
+            if (!req || req.status !== 'Pending') return;
+
+            req.status = 'Approved';
+            saveWithdrawalRequests();
+            renderAdminWithdrawals();
+            renderUserWithdrawalHistory();
+
+            addNotificationForUser(
+                req.userPhone,
+                'Withdrawal Approved!',
+                `Your GCash withdrawal request of ₱ ${req.amount.toLocaleString('en-US', {minimumFractionDigits: 2})} [Ref: ${req.refNo}] has been approved.`,
+                'approval'
+            );
+
+            addAdminLog(`Approved withdrawal request [${req.refNo}] for ₱ ${req.amount} (+63 ${req.userPhone}).`);
+            showToast(`Withdrawal [${req.refNo}] marked as APPROVED!`, 'success');
+        }
+
+        function rejectWithdrawal(id) {
+            const req = withdrawalRequests.find(r => r.id === id);
+            if (!req || req.status !== 'Pending') return;
+
+            req.status = 'Rejected';
+            
+            if (registeredUsers[req.userPhone]) {
+                registeredUsers[req.userPhone].balance += req.amount;
+                
+                if (currentUserPhone === req.userPhone) {
+                    userBalance += req.amount;
+                    updateDashboardDisplay();
+                    addTransactionRecord(`Withdrawal Refund (${req.refNo})`, req.amount, 'refund', 'Refunded due to rejection');
+                }
+            }
+
+            saveUsers();
+            saveWithdrawalRequests();
+            renderAdminWithdrawals();
+            renderUserWithdrawalHistory();
+
+            addNotificationForUser(
+                req.userPhone,
+                'Withdrawal Rejected & Refunded',
+                `Your withdrawal request of ₱ ${req.amount.toLocaleString('en-US', {minimumFractionDigits: 2})} [Ref: ${req.refNo}] was rejected. The full amount has been automatically refunded to your balance.`,
+                'rejected'
+            );
+
+            addAdminLog(`Rejected withdrawal request [${req.refNo}] and refunded ₱ ${req.amount} to +63 ${req.userPhone}.`);
+            showToast(`Withdrawal [${req.refNo}] REJECTED and ₱ ${req.amount.toLocaleString()} refunded to user!`, 'error');
+        }
+
+        function updateDashboardDisplay() {
+            document.getElementById('balance-amount').innerText = `₱ ${userBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('total-invested').innerText = `₱ ${totalInvested.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('daily-earnings').innerText = `₱ ${dailyEarnings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('bonus-earned-display').innerText = `₱ ${bonusEarned.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('level1-users-count').innerText = `${level1UsersCount} Users`;
+        }
+
+        function copyRefLink() {
+            const linkText = document.getElementById('ref-link').innerText;
+            const textArea = document.createElement("textarea");
+            textArea.value = linkText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Invitation code copied to clipboard!', 'success');
+            } catch (err) {
+                showToast('Failed to copy code', 'error');
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function switchTab(tabName) {
+            if (tabName === 'plans') {
+                window.scrollTo({ top: 300, behavior: 'smooth' });
+            } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const content = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgCol = 'bg-neste-800 border-neste-600 text-white';
+            let icon = 'fa-circle-check text-neste-400';
+            if (type === 'error') {
+                bgCol = 'bg-red-950 border-red-700 text-white';
+                icon = 'fa-circle-exclamation text-red-400';
+            } else if (type === 'info') {
+                bgCol = 'bg-gray-800 border-gray-700 text-white';
+                icon = 'fa-circle-info text-blue-400';
+            }
+
+            toast.className = `pointer-events-auto flex items-center space-x-3 px-4 py-3 rounded-2xl border shadow-xl ${bgCol} text-xs font-medium transition-all transform translate-y-2 opacity-0`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-base"></i><span>${message}</span>`;
+            
+            content.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 50);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
